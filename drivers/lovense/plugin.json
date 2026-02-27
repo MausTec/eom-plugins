@@ -1,10 +1,18 @@
 {
     "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
-    "name": "lovense",
-    "type": "ble_driver",
+    "name": "lovense-driver",
+    "version": "1.0.0",
+    "sdkVersion": "1.0.0",
     "displayName": "Lovense Driver",
     "description": "BLE driver for Lovense vibrators (Lush, Hush, Edge, etc.)",
+    "author": "Maus-Tec Electronics",
+    "license": "MIT",
+    "repository": "https://github.com/maustec/eom-plugins",
+    "type": "ble_driver",
     "permissions": [ "ble:write" ],
+    "match": {
+        "bleNamePrefix": "LVS-"
+    },
     "config": {
         "maxLevel": {
             "type": "int",
@@ -14,39 +22,27 @@
             "label": "Max Speed Level"
         }
     },
-    "match": {
-        "bleNamePrefix": "LVS-"
-    },
     "functions": {
         "mapSpeed": {
-            "comment": "Map 0-255 to Lovense 0-maxLevel range (default 20). maxLevel is read from plugin config.",
-            "vars": { "speed": 0 },
-            "if": {
-                "eq": [ "$arg", 255 ],
-                "then": [
-                    { "return": 20 }
-                ],
-                "else": [
-                    { "div": [ "$arg", 13 ], "to": "$speed" },
-                    { "round": "$speed", "to": "$speed" },
-                    { "return": "$speed" }
-                ]
-            }
+            "vars": { "maxLevel": 20, "speed": 0 },
+            "actions": [
+                { "getPluginConfig": [ "maxLevel", 20 ], "to": "$maxLevel" },
+                { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
+                { "div": [ "$speed", 255 ], "to": "$speed" },
+                { "round": "$speed", "to": "$speed" },
+                { "return": "$speed" }
+            ]
         }
     },
     "events": {
         "connect": [
-            { "log": "Lovense device connected" }
+            { "log": "lovense: connected" }
         ],
         "disconnect": [
-            { "set": { "arg": 0 } },
-            { "@mapSpeed": { } },
-            { "toString": "$_", "to": "$level" },
-            { "concat": [ "Vibrate:", "$level", ";" ], "to": "$cmd" },
-            { "bleWrite": "$cmd" }
+            { "log": "lovense: disconnected" }
         ],
         "speedChange": [
-            { "@mapSpeed": { } },
+            { "@mapSpeed": { "arg": "$arg" } },
             { "toString": "$_", "to": "$level" },
             { "concat": [ "Vibrate:", "$level", ";" ], "to": "$cmd" },
             { "bleWrite": "$cmd" }

@@ -1,0 +1,187 @@
+{
+    "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
+    "name": "brainfuck",
+    "version": "1.0.0",
+    "sdkVersion": "1.0.0",
+    "displayName": "Brainfuck",
+    "description": "Brainfuck interpreter running a Hello World program on boot. Stress-test for mt-actions loops, arrays, and branching.",
+    "author": "Maus-Tec Electronics",
+    "license": "MIT",
+    "repository": "https://github.com/maustec/eom-plugins",
+    "type": "feature",
+    "permissions": [ ],
+    "variables": {
+        "tape[100]": [ ],
+        "cmd": ""
+    },
+    "functions": {
+        "forward": {
+            "vars": {
+                "k": 0,
+                "h": "",
+                "pos": 0
+            },
+            "actions": [
+                { "set": { "pos": "$from" } },
+                {
+                    "while": {
+                        "lt": [ "$pos", "$cmdlen" ],
+                        "then": [
+                            { "charat": [ "$cmd", "$pos" ], "to": "$h" },
+                            { "if": { "eq": [ "$h", "[" ], "then": [ { "inc": "$k" } ] } },
+                            { "if": { "eq": [ "$h", "]" ], "then": [ { "dec": "$k" } ] } },
+                            {
+                                "if": {
+                                    "all": [
+                                        { "eq": [ "$h", "]" ] },
+                                        { "eq": [ "$k", 0 ] }
+                                    ],
+                                    "then": [ { "return": "$pos" } ]
+                                }
+                            },
+                            { "inc": "$pos" }
+                        ]
+                    }
+                },
+                { "return": "$pos" }
+            ]
+        },
+        "backward": {
+            "vars": {
+                "k": 0,
+                "h": "",
+                "pos": 0
+            },
+            "actions": [
+                { "set": { "pos": "$from" } },
+                {
+                    "while": {
+                        "gt": [ "$pos", 0 ],
+                        "then": [
+                            { "charat": [ "$cmd", "$pos" ], "to": "$h" },
+                            { "if": { "eq": [ "$h", "]" ], "then": [ { "inc": "$k" } ] } },
+                            { "if": { "eq": [ "$h", "[" ], "then": [ { "dec": "$k" } ] } },
+                            {
+                                "if": {
+                                    "all": [
+                                        { "eq": [ "$h", "[" ] },
+                                        { "eq": [ "$k", 0 ] }
+                                    ],
+                                    "then": [ { "return": "$pos" } ]
+                                }
+                            },
+                            { "dec": "$pos" }
+                        ]
+                    }
+                },
+                { "return": "$pos" }
+            ]
+        },
+        "interpret": {
+            "vars": {
+                "i": 0,
+                "ptr": 0,
+                "len": 0,
+                "c": "",
+                "val": 0
+            },
+            "actions": [
+                { "strlen": "$cmd", "to": "$len" },
+                {
+                    "while": {
+                        "lt": [ "$i", "$len" ],
+                        "then": [
+                            { "charat": [ "$cmd", "$i" ], "to": "$c" },
+                            { "if": { "eq": [ "$c", ">" ], "then": [ { "inc": "$ptr" } ] } },
+                            { "if": { "eq": [ "$c", "<" ], "then": [ { "dec": "$ptr" } ] } },
+                            {
+                                "if": {
+                                    "eq": [ "$c", "+" ],
+                                    "then": [
+                                        { "getbyte": [ "$tape", "$ptr" ], "to": "$val" },
+                                        { "inc": "$val" },
+                                        { "setbyte": [ "$tape", "$ptr", "$val" ] }
+                                    ]
+                                }
+                            },
+                            {
+                                "if": {
+                                    "eq": [ "$c", "-" ],
+                                    "then": [
+                                        { "getbyte": [ "$tape", "$ptr" ], "to": "$val" },
+                                        { "dec": "$val" },
+                                        { "setbyte": [ "$tape", "$ptr", "$val" ] }
+                                    ]
+                                }
+                            },
+                            {
+                                "if": {
+                                    "eq": [ "$c", "." ],
+                                    "then": [
+                                        { "getbyte": [ "$tape", "$ptr" ], "to": "$val" },
+                                        { "log": "$val" }
+                                    ]
+                                }
+                            },
+                            {
+                                "if": {
+                                    "eq": [ "$c", "," ],
+                                    "then": [
+                                        { "set": { "val": 0 } }
+                                    ]
+                                }
+                            },
+                            {
+                                "if": {
+                                    "eq": [ "$c", "[" ],
+                                    "then": [
+                                        { "getbyte": [ "$tape", "$ptr" ], "to": "$val" },
+                                        {
+                                            "if": {
+                                                "eq": [ "$val", 0 ],
+                                                "then": [
+                                                    {
+                                                        "@forward": { "from": "$i", "cmdlen": "$len" },
+                                                        "to": "$i"
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "if": {
+                                    "eq": [ "$c", "]" ],
+                                    "then": [
+                                        { "getbyte": [ "$tape", "$ptr" ], "to": "$val" },
+                                        {
+                                            "if": {
+                                                "neq": [ "$val", 0 ],
+                                                "then": [
+                                                    {
+                                                        "@backward": { "from": "$i" },
+                                                        "to": "$i"
+                                                    },
+                                                    { "dec": "$i" }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            { "inc": "$i" }
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "events": {
+        "modeSet": [
+            { "set": { "cmd": "++++++++[>+++++<-]>++." } },
+            "@interpret",
+            { "log": "brainfuck: done" }
+        ]
+    }
+}
