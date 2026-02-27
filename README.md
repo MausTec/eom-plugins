@@ -18,4 +18,4 @@ Plugins use the mt-actions JSON scripting system. See individual plugin READMEs 
 
 ## License
 
-GPLv3 - See LICENSE file
+MIT License — see [LICENSE](LICENSE)

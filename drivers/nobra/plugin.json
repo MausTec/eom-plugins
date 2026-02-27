@@ -1,0 +1,56 @@
+{
+    "name": "nobra",
+    "type": "ble_driver",
+    "displayName": "Nobra Driver",
+    "description": "BLE driver for Nobra silicone vibrators",
+    "permissions": [ "ble:write" ],
+    "config": {
+        "maxLevel": {
+            "type": "int",
+            "default": 15,
+            "min": 1,
+            "max": 15,
+            "label": "Max Speed Level"
+        }
+    },
+    "match": {
+        "bleName": "NobraControl"
+    },
+    "functions": {
+        "mapSpeed": {
+            "comment": "Map 0-255 to Nobra char commands: 'p' (stop) or 'a'-'o' (maxLevel levels, default 15). maxLevel is read from plugin config.",
+            "vars": { "proportion": 0.0, "nobraSpeed": 0, "charCode": 0 },
+            "if": {
+                "eq": [ "$arg", 0 ],
+                "then": [
+                    { "return": "p" }
+                ],
+                "else": [
+                    { "div": [ "$arg", 255.0 ], "to": "$proportion" },
+                    { "mul": [ 15, "$proportion" ], "to": "$nobraSpeed" },
+                    { "round": "$nobraSpeed", "to": "$nobraSpeed" },
+                    { "add": [ 96, "$nobraSpeed" ], "to": "$charCode" },
+                    { "chr": "$charCode", "to": "$_" },
+                    { "return": "$_" }
+                ]
+            }
+        }
+    },
+    "events": {
+        "connect": [
+            { "log": "Nobra device connected" },
+            { "set": { "arg": 0 } },
+            { "@mapSpeed": { } },
+            { "bleWriteNoResponse": "$_" }
+        ],
+        "disconnect": [
+            { "set": { "arg": 0 } },
+            { "@mapSpeed": { } },
+            { "bleWriteNoResponse": "$_" }
+        ],
+        "speedChange": [
+            { "@mapSpeed": { } },
+            { "bleWriteNoResponse": "$_" }
+        ]
+    }
+}

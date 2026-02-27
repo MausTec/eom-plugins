@@ -1,0 +1,55 @@
+{
+    "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
+    "name": "lovense",
+    "type": "ble_driver",
+    "displayName": "Lovense Driver",
+    "description": "BLE driver for Lovense vibrators (Lush, Hush, Edge, etc.)",
+    "permissions": [ "ble:write" ],
+    "config": {
+        "maxLevel": {
+            "type": "int",
+            "default": 20,
+            "min": 1,
+            "max": 20,
+            "label": "Max Speed Level"
+        }
+    },
+    "match": {
+        "bleNamePrefix": "LVS-"
+    },
+    "functions": {
+        "mapSpeed": {
+            "comment": "Map 0-255 to Lovense 0-maxLevel range (default 20). maxLevel is read from plugin config.",
+            "vars": { "speed": 0 },
+            "if": {
+                "eq": [ "$arg", 255 ],
+                "then": [
+                    { "return": 20 }
+                ],
+                "else": [
+                    { "div": [ "$arg", 13 ], "to": "$speed" },
+                    { "round": "$speed", "to": "$speed" },
+                    { "return": "$speed" }
+                ]
+            }
+        }
+    },
+    "events": {
+        "connect": [
+            { "log": "Lovense device connected" }
+        ],
+        "disconnect": [
+            { "set": { "arg": 0 } },
+            { "@mapSpeed": { } },
+            { "toString": "$_", "to": "$level" },
+            { "concat": [ "Vibrate:", "$level", ";" ], "to": "$cmd" },
+            { "bleWrite": "$cmd" }
+        ],
+        "speedChange": [
+            { "@mapSpeed": { } },
+            { "toString": "$_", "to": "$level" },
+            { "concat": [ "Vibrate:", "$level", ";" ], "to": "$cmd" },
+            { "bleWrite": "$cmd" }
+        ]
+    }
+}
