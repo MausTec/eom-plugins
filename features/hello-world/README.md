@@ -16,7 +16,7 @@ Not intended for production use.
 
 ## Installation
 
-Copy `plugin.json` to `/plugins/` on your SD card and restart.
+Copy the `hello-world/` folder into `plugins/` on your SD card and restart.
 
 ## License
 

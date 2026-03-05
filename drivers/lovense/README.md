@@ -8,8 +8,8 @@ config (default 20).
 
 ## Installation
 
-Copy `plugin.json` to `/plugins/` on your SD card and restart. Enable Bluetooth, then scan and
-pair from Network Settings.
+Copy the `lovense/` folder into `plugins/` on your SD card and restart.
+Enable Bluetooth, then scan and pair from Network Settings.
 
 ## License
 

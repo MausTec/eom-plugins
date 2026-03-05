@@ -10,9 +10,14 @@ Community plugins and drivers for the Edge-o-Matic 3000.
 
 ## Installation
 
-Copy plugin `.json` files to your Edge-o-Matic 3000 SD card under `/plugins/` directory.
+On your device's SD card, find or create a folder called `plugins`
+(lowercase, at the top level of the card).
 
-App `*.mpk` files should be copied to the `/apps/` directory.
+Each plugin in this repository is a named folder containing a `plugin.json`
+file. Copy the whole folder (e.g. `lovense/`) into `plugins/` and restart
+the device.
+
+App `*.mpk` files should be copied to the `apps/` directory.
 
 ## Development
 
