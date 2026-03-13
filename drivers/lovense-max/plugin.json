@@ -1,0 +1,162 @@
+{
+    "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
+    "name": "lovense-max-driver",
+    "version": "1.0.0",
+    "sdkVersion": "1.0.0",
+    "displayName": "Lovense Max Driver",
+    "description": "BLE driver for Lovense Max: vibration motor and oscillating pneumatic air actuator",
+    "author": "Maus-Tec Electronics",
+    "license": "MIT",
+    "repository": "https://github.com/maustec/eom-plugins",
+    "type": "ble_driver",
+    "permissions": [ "ble:write" ],
+    "match": {
+        "bleNamePrefix": "LVS-Max"
+    },
+    "config": {
+        "maxLevel": {
+            "type": "int",
+            "default": 20,
+            "min": 1,
+            "max": 20,
+            "label": "Vibration Max Level"
+        },
+        "airMin": {
+            "type": "int",
+            "default": 1,
+            "min": 0,
+            "max": 5,
+            "label": "Air Min Level"
+        },
+        "airMax": {
+            "type": "int",
+            "default": 4,
+            "min": 0,
+            "max": 5,
+            "label": "Air Max Level"
+        },
+        "oscPeriodMs": {
+            "type": "int",
+            "default": 2000,
+            "min": 500,
+            "max": 10000,
+            "label": "Oscillation Period"
+        },
+        "oscEnabled": {
+            "type": "bool",
+            "default": true,
+            "label": "Enable Air Oscillation"
+        },
+        "oscPeriodMinMs": {
+            "type": "int",
+            "default": 400,
+            "min": 200,
+            "max": 10000,
+            "label": "Oscillation Min Period"
+        },
+        "oscSpeedLinked": {
+            "type": "bool",
+            "default": true,
+            "label": "Link Oscillation Speed to Vibration Speed"
+        }
+    },
+    "variables": {
+        "airPhase": 0,
+        "lastToggleMs": 0,
+        "currentAirLevel": 0,
+        "currentPeriodMs": 2000
+    },
+    "functions": {
+        "mapSpeed": {
+            "vars": { "maxLevel": 20, "speed": 0 },
+            "actions": [
+                { "getPluginConfig": [ "maxLevel", 20 ], "to": "$maxLevel" },
+                { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
+                { "div": [ "$speed", 255 ], "to": "$speed" },
+                { "round": "$speed", "to": "$speed" },
+                { "return": "$speed" }
+            ]
+        },
+        "mapOscPeriod": {
+            "vars": { "maxP": 2000, "minP": 400, "inv": 0, "range": 0, "scaled": 0 },
+            "actions": [
+                { "getPluginConfig": [ "oscPeriodMs", 2000 ], "to": "$maxP" },
+                { "getPluginConfig": [ "oscPeriodMinMs", 400 ], "to": "$minP" },
+                { "sub": [ 255, "$arg" ], "to": "$inv" },
+                { "sub": [ "$maxP", "$minP" ], "to": "$range" },
+                { "mul": [ "$inv", "$range" ], "to": "$scaled" },
+                { "div": [ "$scaled", 255 ], "to": "$scaled" },
+                { "round": "$scaled", "to": "$scaled" },
+                { "add": [ "$minP", "$scaled" ], "to": "$scaled" },
+                { "return": "$scaled" }
+            ]
+        },
+        "setAirLevel": {
+            "vars": { "lvl": 0 },
+            "actions": [
+                { "set": [ "$currentAirLevel", "$arg" ] },
+                { "toString": "$currentAirLevel", "to": "$lvls" },
+                { "concat": [ "Air:Level:", "$lvls", ";" ], "to": "$aircmd" },
+                { "bleWrite": "$aircmd" }
+            ]
+        }
+    },
+    "events": {
+        "connect": [
+            { "log": "lovense-max: connected" },
+            { "bleWrite": "Battery;" },
+            { "millis": [ ], "to": "$lastToggleMs" },
+            { "getPluginConfig": [ "oscPeriodMs", 2000 ], "to": "$currentPeriodMs" },
+            { "getPluginConfig": [ "airMin", 1 ], "to": "$initAir" },
+            { "@setAirLevel": { "arg": "$initAir" } },
+            { "set": [ "$airPhase", 1 ] }
+        ],
+        "disconnect": [
+            { "log": "lovense-max: disconnected" }
+        ],
+        "speedChange": [
+            { "@mapSpeed": { "arg": "$arg" } },
+            { "toString": "$_", "to": "$level" },
+            { "concat": [ "Vibrate:", "$level", ";" ], "to": "$cmd" },
+            { "bleWrite": "$cmd" },
+            { "getPluginConfig": [ "oscSpeedLinked", true ], "to": "$linked" },
+            { "if": {
+                    "eq": [ "$linked", true ],
+                    "then": [
+                        { "@mapOscPeriod": { "arg": "$arg" } },
+                        { "set": [ "$currentPeriodMs", "$_" ] }
+                    ]
+                } }
+        ],
+        "tick": [
+            { "getPluginConfig": [ "oscEnabled", true ], "to": "$enabled" },
+            { "if": {
+                    "eq": [ "$enabled", false ],
+                    "then": [ { "return": 0 } ]
+                } },
+            { "set": [ "$period", "$currentPeriodMs" ] },
+            { "div": [ "$period", 2 ], "to": "$halfPeriod" },
+            { "millis": [ ], "to": "$now" },
+            { "sub": [ "$now", "$lastToggleMs" ], "to": "$elapsed" },
+            { "if": {
+                    "gte": [ "$elapsed", "$halfPeriod" ],
+                    "then": [
+                        { "set": [ "$lastToggleMs", "$now" ] },
+                        { "if": {
+                                "eq": [ "$airPhase", 1 ],
+                                "then": [
+                                    { "getPluginConfig": [ "airMax", 4 ], "to": "$target" },
+                                    { "@setAirLevel": { "arg": "$target" } },
+                                    { "set": [ "$airPhase", 0 ] }
+                                ],
+                                "else": [
+                                    { "getPluginConfig": [ "airMin", 1 ], "to": "$target" },
+                                    { "@setAirLevel": { "arg": "$target" } },
+                                    { "set": [ "$airPhase", 1 ] }
+                                ]
+                            } }
+                    ]
+                } }
+        ]
+    }
+}

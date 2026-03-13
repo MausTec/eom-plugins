@@ -1,0 +1,73 @@
+{
+    "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
+    "name": "lovense-edge-driver",
+    "version": "1.0.0",
+    "sdkVersion": "1.0.0",
+    "displayName": "Lovense Edge Driver",
+    "description": "BLE driver for Lovense Edge and Edge 2: dual independent vibration motors",
+    "author": "Maus-Tec Electronics",
+    "license": "MIT",
+    "repository": "https://github.com/maustec/eom-plugins",
+    "type": "ble_driver",
+    "permissions": [ "ble:write" ],
+    "match": {
+        "bleNamePrefix": "LVS-Edge"
+    },
+    "config": {
+        "motor1MaxLevel": {
+            "type": "int",
+            "default": 20,
+            "min": 0,
+            "max": 20,
+            "label": "Motor 1 Max Level"
+        },
+        "motor2MaxLevel": {
+            "type": "int",
+            "default": 20,
+            "min": 0,
+            "max": 20,
+            "label": "Motor 2 Max Level"
+        }
+    },
+    "functions": {
+        "mapMotor1": {
+            "vars": { "maxLevel": 20, "speed": 0 },
+            "actions": [
+                { "getPluginConfig": [ "motor1MaxLevel", 20 ], "to": "$maxLevel" },
+                { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
+                { "div": [ "$speed", 255 ], "to": "$speed" },
+                { "round": "$speed", "to": "$speed" },
+                { "return": "$speed" }
+            ]
+        },
+        "mapMotor2": {
+            "vars": { "maxLevel": 20, "speed": 0 },
+            "actions": [
+                { "getPluginConfig": [ "motor2MaxLevel", 20 ], "to": "$maxLevel" },
+                { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
+                { "div": [ "$speed", 255 ], "to": "$speed" },
+                { "round": "$speed", "to": "$speed" },
+                { "return": "$speed" }
+            ]
+        }
+    },
+    "events": {
+        "connect": [
+            { "log": "lovense-edge: connected" },
+            { "bleWrite": "Battery;" }
+        ],
+        "disconnect": [
+            { "log": "lovense-edge: disconnected" }
+        ],
+        "speedChange": [
+            { "@mapMotor1": { "arg": "$arg" } },
+            { "toString": "$_", "to": "$level1" },
+            { "concat": [ "Vibrate:", "$level1", ";" ], "to": "$cmd" },
+            { "bleWrite": "$cmd" },
+            { "@mapMotor2": { "arg": "$arg" } },
+            { "toString": "$_", "to": "$level2" },
+            { "concat": [ "Vibrate2:", "$level2", ";" ], "to": "$cmd" },
+            { "bleWrite": "$cmd" }
+        ]
+    }
+}

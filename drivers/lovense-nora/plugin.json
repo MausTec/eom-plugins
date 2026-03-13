@@ -1,0 +1,79 @@
+{
+    "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
+    "name": "lovense-nora-driver",
+    "version": "1.0.0",
+    "sdkVersion": "1.0.0",
+    "displayName": "Lovense Nora Driver",
+    "description": "BLE driver for Lovense Nora: vibration motor and independently configurable rotation arm",
+    "author": "Maus-Tec Electronics",
+    "license": "MIT",
+    "repository": "https://github.com/maustec/eom-plugins",
+    "type": "ble_driver",
+    "permissions": [ "ble:write" ],
+    "match": {
+        "bleNamePrefix": "LVS-Nora"
+    },
+    "config": {
+        "maxVibrate": {
+            "type": "int",
+            "default": 20,
+            "min": 1,
+            "max": 20,
+            "label": "Vibration Max Level"
+        },
+        "maxRotate": {
+            "type": "int",
+            "default": 12,
+            "min": 0,
+            "max": 20,
+            "label": "Rotation Max Level (0 = disabled)"
+        }
+    },
+    "functions": {
+        "mapVibrate": {
+            "vars": { "maxLevel": 20, "speed": 0 },
+            "actions": [
+                { "getPluginConfig": [ "maxVibrate", 20 ], "to": "$maxLevel" },
+                { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
+                { "div": [ "$speed", 255 ], "to": "$speed" },
+                { "round": "$speed", "to": "$speed" },
+                { "return": "$speed" }
+            ]
+        },
+        "mapRotate": {
+            "vars": { "maxLevel": 12, "speed": 0 },
+            "actions": [
+                { "getPluginConfig": [ "maxRotate", 12 ], "to": "$maxLevel" },
+                { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
+                { "div": [ "$speed", 255 ], "to": "$speed" },
+                { "round": "$speed", "to": "$speed" },
+                { "return": "$speed" }
+            ]
+        }
+    },
+    "events": {
+        "connect": [
+            { "log": "lovense-nora: connected" },
+            { "bleWrite": "Battery;" }
+        ],
+        "disconnect": [
+            { "log": "lovense-nora: disconnected" }
+        ],
+        "speedChange": [
+            { "@mapVibrate": { "arg": "$arg" } },
+            { "toString": "$_", "to": "$vlevel" },
+            { "concat": [ "Vibrate:", "$vlevel", ";" ], "to": "$vcmd" },
+            { "bleWrite": "$vcmd" },
+            { "getPluginConfig": [ "maxRotate", 12 ], "to": "$maxRotate" },
+            { "if": {
+                    "gt": [ "$maxRotate", 0 ],
+                    "then": [
+                        { "@mapRotate": { "arg": "$arg" } },
+                        { "toString": "$_", "to": "$rlevel" },
+                        { "concat": [ "Rotate:", "$rlevel", ";" ], "to": "$rcmd" },
+                        { "bleWrite": "$rcmd" }
+                    ]
+                } }
+        ]
+    }
+}
