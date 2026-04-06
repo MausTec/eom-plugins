@@ -1,0 +1,10 @@
+{
+    "strict": true,
+    "plugins": [
+        "drivers/*",
+        "features/*"
+    ],
+    "apps": [
+        "apps/*"
+    ]
+}
