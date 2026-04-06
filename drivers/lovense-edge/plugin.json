@@ -9,6 +9,7 @@
     "license": "MIT",
     "repository": "https://github.com/maustec/eom-plugins",
     "type": "ble_driver",
+    "platforms": [ "@eom" ],
     "permissions": [ "ble:write" ],
     "match": {
         "bleNamePrefix": "LVS-Edge"

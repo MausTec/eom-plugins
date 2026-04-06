@@ -9,6 +9,7 @@
     "license": "MIT",
     "repository": "https://github.com/maustec/eom-plugins",
     "type": "feature",
+    "platforms": [ "@eom", "@mercury" ],
     "permissions": [ ],
     "variables": {
         "tape[100]": [ ],
