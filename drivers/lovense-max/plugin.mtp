@@ -1,0 +1,109 @@
+# using "defplugin" also lets us use "defmodule" in the future to create things we can "import" or "alias"
+defplugin "Lovense Max Driver" do
+  version   "1.0.0"
+  sdk       "~>1.0.0"
+  description      "BLE driver for Lovense Max: vibration motor and oscillating pneumatic air actuator"
+  author    "Maus-Tec Electronics"
+  license   "MIT"
+  repository      "https://github.com/maustec/eom-plugins"
+  platform  "@eom"
+  permissions    ["ble:write"]
+
+  match do
+    ble_name_prefix "LVS-Max"
+  end
+
+  config do # Implicit @ prefix
+    # Vibration Max Level
+    int maxLevel = 20, min: 0, max: 5
+
+    # Air Min Level
+    int airMin = 1, min: 0, max: 5
+
+    # Air Max Level
+    int airMax = 4, min: 0, max: 5
+
+    # Oscillation Period (ms)
+    int oscPeriodMs = 2000, min: 500, max: 10000
+
+    # Enable Air Oscillation
+    bool oscEnabled = true
+
+    # Oscillation Minimum Period (ms)
+    int oscPeriodMinMs = 400, min: 200, max: 10000
+
+    # Link Oscillation Speed to Vibration Speed
+    bool oscSpeedLinked = true
+  end
+
+  globals do # Implicit $ prefix
+    int airPhase        = 0
+    int lastToggleMs    = 0
+    int currentAirLevel = 0
+    int currentPeriodMs = 2000
+  end
+
+  # Maps a 0-255 speed value to a 0-maxLevel motor command value. (fn looks an awful lot like a type here, which is an accidental positive)
+  fn mapSpeed = (int arg) -> round(arg * @maxLevel / 255)
+
+  # Inverts speed to period: faster speed -> shorter (snappier) oscillation period.
+  fn mapOscPeriod = (int arg) -> round((255 - arg) * (@oscPeriodMs - @oscPeriodMinMs) / 255) |> add(@oscPeriodMinMs)
+
+  # Sends an air level command and records the current level to globals.
+  def setAirLevel(int arg) do
+    $currentAirLevel = arg
+    $currentAirLevel |> to_string() |> concat("Air:Level:", $_, ";") |> ble_write()
+
+    # The above line might also be written as this, which is probably more messy? The concat syntax I think is best, but for
+    # completeness:
+    ("Air:Level:" <> ($currentAirLevel |> to_string()) <> ";") |> ble_write()
+  end
+
+  on :connect do
+    log "lovense-max: connected"
+    ble_write "Battery;"
+
+    $lastToggleMs    = millis()
+    $currentPeriodMs = @oscPeriodMs
+    
+    setAirLevel @airMin
+    
+    $airPhase = 1
+  end
+
+  on :disconnect do
+    log "lovense-max: disconnected"
+  end
+
+  on :speedChange do
+    string level = 0 # Discuss whether we should enforce hoisting in the parser or just allow decls anywhere
+
+    level = mapSpeed(arg) |> to_string()
+    ble_write "Vibrate:" <> level <> ";"
+    $currentPeriodMs = mapOscPeriod(arg) if @oscSpeedLinked
+  end
+
+  on :tick do
+    int halfPeriod
+    int now
+    int elapsed
+    
+    return 0 unless @oscEnabled
+
+    halfPeriod = $currentPeriodMs / 2
+    now        = millis()
+    elapsed    = now - $lastToggleMs
+
+    if elapsed >= halfPeriod do
+      $lastToggleMs = now
+
+      if $airPhase == 1 do
+        setAirLevel @airMax
+        $airPhase = 0
+      else
+        setAirLevel @airMin
+        set $airPhase = 1
+      end
+    end
+  end
+end
