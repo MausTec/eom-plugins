@@ -12,7 +12,7 @@
     "platforms": [ "@eom" ],
     "permissions": [ "ble:write" ],
     "match": {
-        "bleName": "NobraControl"
+        "bleName": "Nobra Control"
     },
     "config": {
         "maxLevel": {
