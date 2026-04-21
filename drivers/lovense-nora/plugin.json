@@ -2,8 +2,8 @@
     "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
     "name": "lovense-nora-driver",
     "version": "1.0.0",
-    "sdkVersion": "1.0.0",
-    "displayName": "Lovense Nora Driver",
+    "sdk_version": "1.0.0",
+    "display_name": "Lovense Nora Driver",
     "description": "BLE driver for Lovense Nora: vibration motor and independently configurable rotation arm",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
@@ -12,7 +12,7 @@
     "platforms": [ "@eom" ],
     "permissions": [ "ble:write" ],
     "match": {
-        "bleNamePrefix": "LVS-Nora"
+        "ble_name_prefix": "LVS-Nora"
     },
     "config": {
         "maxVibrate": {
@@ -60,9 +60,9 @@
         "disconnect": [
             { "log": "lovense-nora: disconnected" }
         ],
-        "speedChange": [
+        "speed_change": [
             { "@mapVibrate": { "arg": "$arg" } },
-            { "toString": "$_", "to": "$vlevel" },
+            { "to_string": "$_", "to": "$vlevel" },
             { "concat": [ "Vibrate:", "$vlevel", ";" ], "to": "$vcmd" },
             { "bleWrite": "$vcmd" },
             { "getPluginConfig": [ "maxRotate", 12 ], "to": "$maxRotate" },
@@ -70,7 +70,7 @@
                     "gt": [ "$maxRotate", 0 ],
                     "then": [
                         { "@mapRotate": { "arg": "$arg" } },
-                        { "toString": "$_", "to": "$rlevel" },
+                        { "to_string": "$_", "to": "$rlevel" },
                         { "concat": [ "Rotate:", "$rlevel", ";" ], "to": "$rcmd" },
                         { "bleWrite": "$rcmd" }
                     ]

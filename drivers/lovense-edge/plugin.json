@@ -2,8 +2,8 @@
     "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
     "name": "lovense-edge-driver",
     "version": "1.0.0",
-    "sdkVersion": "1.0.0",
-    "displayName": "Lovense Edge Driver",
+    "sdk_version": "1.0.0",
+    "display_name": "Lovense Edge Driver",
     "description": "BLE driver for Lovense Edge and Edge 2: dual independent vibration motors",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
@@ -12,7 +12,7 @@
     "platforms": [ "@eom" ],
     "permissions": [ "ble:write" ],
     "match": {
-        "bleNamePrefix": "LVS-Edge"
+        "ble_name_prefix": "LVS-Edge"
     },
     "config": {
         "motor1MaxLevel": {
@@ -60,13 +60,13 @@
         "disconnect": [
             { "log": "lovense-edge: disconnected" }
         ],
-        "speedChange": [
+        "speed_change": [
             { "@mapMotor1": { "arg": "$arg" } },
-            { "toString": "$_", "to": "$level1" },
+            { "to_string": "$_", "to": "$level1" },
             { "concat": [ "Vibrate:", "$level1", ";" ], "to": "$cmd" },
             { "bleWrite": "$cmd" },
             { "@mapMotor2": { "arg": "$arg" } },
-            { "toString": "$_", "to": "$level2" },
+            { "to_string": "$_", "to": "$level2" },
             { "concat": [ "Vibrate2:", "$level2", ";" ], "to": "$cmd" },
             { "bleWrite": "$cmd" }
         ]

@@ -2,8 +2,8 @@
     "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
     "name": "hello-world",
     "version": "1.0.0",
-    "sdkVersion": "1.0.0",
-    "displayName": "Hello World",
+    "sdk_version": "1.0.0",
+    "display_name": "Hello World",
     "description": "Boot-count test fixture. Logs on modeSet, tracks runs via plugin config.",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
@@ -20,18 +20,18 @@
     },
     "events": {
         "modeSet": [
-            { "getPluginConfig": [ "runCount", 0 ], "to": "$count" },
+            { "get_plugin_config": [ "runCount", 0 ], "to": "$count" },
             { "inc": "$count" },
-            { "setPluginConfig": [ "runCount", "$count" ] },
-            { "toString": "$count", "to": "$n" },
+            { "set_plugin_config": [ "runCount", "$count" ] },
+            { "to_string": "$count", "to": "$n" },
             { "concat": [ "hello-world: run #", "$n" ], "to": "$msg" },
             { "log": "$msg" },
-            { "getSystemConfig": [ "wifi_on" ], "to": "$wifiOn" },
+            { "get_system_config": [ "wifi_on" ], "to": "$wifiOn" },
             { "concat": [ "hello-world: wifi_on=", "$wifiOn" ], "to": "$msg2" },
             { "log": "$msg2" }
         ],
-        "speedChange": [
-            { "toString": "$arg", "to": "$s" },
+        "speed_change": [
+            { "to_string": "$arg", "to": "$s" },
             { "concat": [ "hello-world: speed=", "$s" ], "to": "$msg" },
             { "log": "$msg" }
         ]

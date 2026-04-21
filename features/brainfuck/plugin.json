@@ -2,8 +2,8 @@
     "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
     "name": "brainfuck",
     "version": "1.0.0",
-    "sdkVersion": "1.0.0",
-    "displayName": "Brainfuck",
+    "sdk_version": "1.0.0",
+    "display_name": "Brainfuck",
     "description": "Brainfuck interpreter running a Hello World program on boot. Stress-test for mt-actions loops, arrays, and branching.",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
@@ -179,7 +179,7 @@
         }
     },
     "events": {
-        "modeSet": [
+        "mode_set": [
             { "set": { "cmd": "++++++++[>+++++<-]>++." } },
             "@interpret",
             { "log": "brainfuck: done" }

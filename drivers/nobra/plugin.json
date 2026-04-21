@@ -2,8 +2,8 @@
     "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
     "name": "nobra-driver",
     "version": "1.0.0",
-    "sdkVersion": "1.0.0",
-    "displayName": "Nobra Driver",
+    "sdk_version": "1.0.0",
+    "display_name": "Nobra Driver",
     "description": "BLE driver for Nobra silicone vibrators",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
@@ -12,7 +12,7 @@
     "platforms": [ "@eom" ],
     "permissions": [ "ble:write" ],
     "match": {
-        "bleName": "Nobra Control"
+        "ble_service_uuid": "0000ABF0-0000-1000-8000-00805F9B34FB"
     },
     "config": {
         "maxLevel": {
@@ -50,7 +50,7 @@
         "disconnect": [
             { "log": "nobra: disconnected" }
         ],
-        "speedChange": [
+        "speed_change": [
             { "@mapSpeed": { "arg": "$arg" } },
             { "bleWriteNoResponse": "$_" }
         ]
