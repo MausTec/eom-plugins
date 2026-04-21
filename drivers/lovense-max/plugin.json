@@ -1,102 +1,97 @@
 {
+    "name": "lovense-max-driver",
     "display_name": "Lovense Max Driver",
     "version": "1.0.0",
-    "sdk_version": "~>1.0.0",
+    "sdk_version": "~> 1.1.0",
     "description": "BLE driver for Lovense Max: vibration motor and oscillating pneumatic air actuator",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
     "repository": "https://github.com/maustec/eom-plugins",
-    "platforms": [ "@eom" ],
+    "platforms": [ "eom3k >= 2.0.2" ],
     "permissions": [ "ble:write" ],
-    "match": { },
+    "match": { "ble_name_prefix": "LVS-Max" },
     "config": {
-        "maxLevel": {
+        "max_level": {
             "type": "int",
             "default": 20,
             "label": "Vibration Max Level",
             "min": 0,
             "max": 5
         },
-        "airMin": {
+        "air_min": {
             "type": "int",
             "default": 1,
             "label": "Air Min Level",
             "min": 0,
             "max": 5
         },
-        "airMax": {
+        "air_max": {
             "type": "int",
             "default": 4,
             "label": "Air Max Level",
             "min": 0,
             "max": 5
         },
-        "oscPeriodMs": {
+        "osc_period_ms": {
             "type": "int",
             "default": 2000,
             "label": "Oscillation Period (ms)",
             "min": 500,
             "max": 10000
         },
-        "oscEnabled": { "type": "bool", "default": true, "label": "Enable Air Oscillation" },
-        "oscPeriodMinMs": {
+        "osc_enabled": { "type": "bool", "default": true, "label": "Enable Air Oscillation" },
+        "osc_period_min_ms": {
             "type": "int",
             "default": 400,
             "label": "Oscillation Minimum Period (ms)",
             "min": 200,
             "max": 10000
         },
-        "oscSpeedLinked": {
+        "osc_speed_linked": {
             "type": "bool",
             "default": true,
             "label": "Link Oscillation Speed to Vibration Speed"
         }
     },
     "variables": {
-        "airPhase": 0,
-        "lastToggleMs": 0,
-        "currentAirLevel": 0,
-        "currentPeriodMs": 2000
+        "air_phase": 0,
+        "last_toggle_ms": 0,
+        "current_air_level": 0,
+        "current_period_ms": 2000
     },
     "functions": {
-        "testReturnType": {
-            "args": [ ],
-            "vars": [ ],
-            "actions": [ { "return": 42 } ],
-            "returnType": "int"
-        },
-        "setAirLevel": {
+        "set_air_level": {
             "args": [ "arg" ],
             "vars": [ ],
             "actions": [
-                { "set": { "$currentAirLevel": "$arg" } },
-                { "set": "$currentAirLevel" },
+                { "set": { "$current_air_level": "$arg" } },
+                { "set": "$current_air_level" },
                 { "to_string": [ ] },
                 { "concat": [ "Air:Level:", "$_", ";" ] },
-                { "bleWrite": [ ] }
+                { "ble_write": [ ] }
             ]
         },
-        "mapSpeed": {
+        "map_speed": {
             "args": [ "arg" ],
             "actions": [
-                { "getPluginConfig": "maxLevel" },
+                { "get_plugin_config": "max_level" },
                 { "mul": [ "$arg", "$_" ] },
                 { "div": [ "$_", 255 ] },
                 { "round": "$_" },
                 { "return": "$_" }
             ]
         },
-        "mapOscPeriod": {
+        "map_osc_period": {
             "args": [ "arg" ],
             "actions": [
                 { "sub": [ 255, "$arg" ], "to": "$__t0" },
-                { "getPluginConfig": "oscPeriodMs", "to": "$__t1" },
-                { "getPluginConfig": "oscPeriodMinMs" },
+                { "get_plugin_config": "osc_period_ms", "to": "$__t1" },
+                { "get_plugin_config": "osc_period_min_ms" },
                 { "sub": [ "$__t1", "$_" ] },
                 { "mul": [ "$__t0", "$_" ] },
                 { "div": [ "$_", 255 ] },
                 { "round": "$_" },
-                { "getPluginConfig": "oscPeriodMinMs", "to": "$__t2" },
+                { "get_plugin_config": "osc_period_min_ms", "to": "$__t2" },
                 { "add": "$__t2" },
                 { "return": "$_" }
             ],
@@ -108,107 +103,58 @@
             "vars": [ ],
             "actions": [
                 { "log": "lovense-max: connected" },
-                { "bleWrite": "Battery;" },
-                { "millis": [ ], "to": "$lastToggleMs" },
-                { "getPluginConfig": "oscPeriodMs", "to": "$currentPeriodMs" },
-                { "getPluginConfig": "airMin" },
-                { "@setAirLevel": "$_" },
-                { "set": { "$airPhase": 1 } }
+                { "ble_write": "Battery;" },
+                { "millis": [ ], "to": "$last_toggle_ms" },
+                { "get_plugin_config": "osc_period_ms", "to": "$current_period_ms" },
+                { "get_plugin_config": "air_min" },
+                { "@set_air_level": "$_" },
+                { "set": { "$air_phase": 1 } }
             ]
         },
         "disconnect": { "vars": [ ], "actions": [ { "log": "lovense-max: disconnected" } ] },
         "speed_change": {
-            "vars": [ "level", "__t0" ],
+            "vars": [ "__t0" ],
             "actions": [
-                { "set": { "$level": 0 } },
-                { "@mapSpeed": "$_" },
-                { "to_string": [ ], "to": "$level" },
-                { "concat": [ "Vibrate:", "$level" ] },
-                { "concat": [ "$_", ";" ] },
-                { "bleWrite": "$_" },
-                { "getPluginConfig": "oscSpeedLinked", "to": "$__t0" },
+                { "set": "$speed" },
+                { "@map_speed": [ ] },
+                { "to_string": [ ] },
+                { "concat": [ "Vibrate:", "$_", ";" ] },
+                { "ble_write": [ ] },
+                { "get_plugin_config": "osc_speed_linked", "to": "$__t0" },
                 {
                     "if": {
                         "neq": [ "$__t0", 0 ],
-                        "then": [ { "@mapOscPeriod": "$_", "to": "$currentPeriodMs" } ]
+                        "then": [ { "@map_osc_period": "$speed", "to": "$current_period_ms" } ]
                     }
                 }
-            ]
-        },
-        "fake_event": {
-            "vars": [ "ival", "array", "iargs", "ukargs", "initargs", "__t0" ],
-            "actions": [
-                { "set": { "$ival": 0 } },
-                { "set": { "$unknownValue": 40 } },
-                {
-                    "if": { "eq": [ "$ival", 0 ], "then": [ { "set": { "$ival": 10 } } ] }
-                },
-                { "getbyte": [ "$iargs", 0 ], "to": "$__t0" },
-                {
-                    "if": {
-                        "gt": [ "$__t0", 5 ],
-                        "then": [
-                            { "getbyte": [ "$iargs", 0 ] },
-                            { "concat": [ "iargs[0] is greater than 5", "$_" ] },
-                            { "log": "$_" }
-                        ]
-                    }
-                },
-                { "getPluginConfig": "unknownConfig", "to": "$ival" },
-                { "set": { "$ival": "$unknownIdentifier" } },
-                { "set": { "$ival": "$setAirLevel" } },
-                { "@setAirLevel": [ ], "to": "$ival" },
-                { "@setAirLevel": "$level" },
-                { "if": { "neq": [ true, 0 ], "then": [ ] } },
-                { "if": { "neq": [ true, 0 ], "then": [ ] } },
-                {
-                    "if": {
-                        "neq": [ true, 0 ],
-                        "then": [
-                            {
-                                "if": {
-                                    "neq": [ false, 0 ],
-                                    "then": [
-                                        { "log": "nested if" },
-                                        {
-                                            "if": {
-                                                "eq": [ "$nestedVar", 0 ],
-                                                "then": [ { "log": "nestedVar is zero" } ]
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
-                    }
-                }
-            ]
+            ],
+            "args": [ "speed" ]
         },
         "tick": {
-            "vars": [ "halfPeriod", "now", "elapsed", "__t0" ],
+            "vars": [ "half_period", "now", "elapsed", "__t0" ],
             "actions": [
-                { "getPluginConfig": "oscEnabled", "to": "$__t0" },
+                { "get_plugin_config": "osc_enabled", "to": "$__t0" },
                 { "if": { "eq": [ "$__t0", 0 ], "then": [ { "return": 0 } ] } },
-                { "div": [ "$currentPeriodMs", 2 ], "to": "$halfPeriod" },
+                { "div": [ "$current_period_ms", 2 ], "to": "$half_period" },
                 { "millis": [ ], "to": "$now" },
-                { "sub": [ "$now", "$lastToggleMs" ], "to": "$elapsed" },
+                { "sub": [ "$now", "$last_toggle_ms" ], "to": "$elapsed" },
                 {
                     "if": {
-                        "gte": [ "$elapsed", "$halfPeriod" ],
+                        "gte": [ "$elapsed", "$half_period" ],
                         "then": [
-                            { "set": { "$lastToggleMs": "$now" } },
+                            { "set": { "$last_toggle_ms": "$now" } },
                             {
                                 "if": {
-                                    "eq": [ "$airPhase", 1 ],
+                                    "eq": [ "$air_phase", 1 ],
                                     "then": [
-                                        { "getPluginConfig": "airMax" },
-                                        { "@setAirLevel": "$_" },
-                                        { "set": { "$airPhase": 0 } }
+                                        { "get_plugin_config": "air_max" },
+                                        { "@set_air_level": "$_" },
+                                        { "set": { "$air_phase": 0 } }
                                     ],
                                     "else": [
-                                        { "getPluginConfig": "airMin" },
-                                        { "@setAirLevel": "$_" },
-                                        { "set": { "$airPhase": 1 } }
+                                        { "get_plugin_config": "air_min" },
+                                        { "@set_air_level": "$_" },
+                                        { "set": { "$air_phase": 1 } }
                                     ]
                                 }
                             }
