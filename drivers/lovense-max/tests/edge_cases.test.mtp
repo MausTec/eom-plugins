@@ -1,0 +1,116 @@
+# Edge case and boundary condition tests
+#
+# Tests for config extremes, math boundaries, and unusual
+# but valid states.
+
+deftest for LovenseMaxDriver do
+  mock millis    = () -> 0
+  mock ble_write = (string data) -> 0
+  mock log       = (string msg) -> 0
+
+  describe "speed mapping boundaries" do
+    test "max_level 1 clamps vibration at any speed" do
+      config do
+        int max_level = 1
+      end
+
+      emit :speed_change with 255
+      expect ble_write called with "Vibrate:1;"
+
+      # round(128 * 1 / 255) = round(0.50) = 1
+      emit :speed_change with 128
+      expect ble_write called with "Vibrate:1;"
+    end
+
+    test "map_speed calls work directly in our test runner" do
+      config do
+        int max_level = 10
+      end
+
+      call map_speed(255)
+      assert result == 10
+
+      call map_speed(128)
+      assert result == 5
+    end
+
+    test "we should not be allowed to mock plugin functions" do
+      mock map_speed = (int speed) -> 0
+    end
+
+    test "speed 1 rounds to zero vibration" do
+      # round(1 * 20 / 255) = round(0.078) = 0
+      emit :speed_change with 1
+      expect ble_write called with "Vibrate:0;"
+    end
+
+    test "speed 13 is first nonzero vibration step" do
+      # round(13 * 20 / 255) = round(1.02) = 1
+      emit :speed_change with 13
+      expect ble_write called with "Vibrate:1;"
+    end
+  end
+
+  describe "air oscillation edge cases" do
+    test "air_min equals air_max holds steady level through toggle" do
+      config do
+        int  air_min     = 3
+        int  air_max     = 3
+        bool osc_enabled = true
+      end
+
+      emit :connect
+      assert $current_air_level == 3
+
+      mock millis = () -> 1000
+      emit :tick
+
+      # Phase toggles but level stays the same — both commands are "Air:Level:3;"
+      assert $current_air_level == 3
+      expect ble_write called with "Air:Level:3;"
+    end
+
+    test "oscillation disabled allows only connect air write" do
+      config do
+        bool osc_enabled = false
+      end
+
+      emit :connect
+      expect ble_write called with "Air:Level:1;"
+
+      mock millis = () -> 5000
+      emit :tick
+      emit :tick
+      emit :tick
+
+      # Battery; + Air:Level:1; from connect, nothing from tick
+      expect ble_write called 2 times
+    end
+
+    test "very short period toggles on consecutive ticks" do
+      config do
+        bool osc_enabled   = true
+        int  osc_period_ms = 500
+        int  air_min       = 0
+        int  air_max       = 5
+      end
+
+      emit :connect
+      # half_period = 250
+
+      mock millis = () -> 251
+      emit :tick
+      assert $air_phase == 0
+      expect ble_write called with "Air:Level:5;"
+
+      mock millis = () -> 502
+      emit :tick
+      assert $air_phase == 1
+      expect ble_write called with "Air:Level:0;"
+
+      mock millis = () -> 753
+      emit :tick
+      assert $air_phase == 0
+    end
+  end
+end

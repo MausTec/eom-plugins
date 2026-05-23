@@ -15,14 +15,14 @@
         "ble_name_prefix": "LVS-Edge"
     },
     "config": {
-        "motor1MaxLevel": {
+        "motor_1_max_level": {
             "type": "int",
             "default": 20,
             "min": 0,
             "max": 20,
             "label": "Motor 1 Max Level"
         },
-        "motor2MaxLevel": {
+        "motor_2_max_level": {
             "type": "int",
             "default": 20,
             "min": 0,
@@ -34,7 +34,7 @@
         "mapMotor1": {
             "vars": { "maxLevel": 20, "speed": 0 },
             "actions": [
-                { "getPluginConfig": [ "motor1MaxLevel", 20 ], "to": "$maxLevel" },
+                { "get_plugin_config": [ "motor_1_max_level", 20 ], "to": "$maxLevel" },
                 { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
                 { "div": [ "$speed", 255 ], "to": "$speed" },
                 { "round": "$speed", "to": "$speed" },
@@ -44,7 +44,7 @@
         "mapMotor2": {
             "vars": { "maxLevel": 20, "speed": 0 },
             "actions": [
-                { "getPluginConfig": [ "motor2MaxLevel", 20 ], "to": "$maxLevel" },
+                { "get_plugin_config": [ "motor_2_max_level", 20 ], "to": "$maxLevel" },
                 { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
                 { "div": [ "$speed", 255 ], "to": "$speed" },
                 { "round": "$speed", "to": "$speed" },

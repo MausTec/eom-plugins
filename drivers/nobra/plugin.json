@@ -15,7 +15,7 @@
         "ble_service_uuid": "0000ABF0-0000-1000-8000-00805F9B34FB"
     },
     "config": {
-        "maxLevel": {
+        "max_level": {
             "type": "int",
             "default": 15,
             "min": 1,
@@ -27,7 +27,7 @@
         "mapSpeed": {
             "vars": { "maxLevel": 15, "proportion": 0.0, "nobraSpeed": 0, "charCode": 0 },
             "actions": [
-                { "getPluginConfig": [ "maxLevel", 15 ], "to": "$maxLevel" },
+                { "get_plugin_config": [ "max_level", 15 ], "to": "$maxLevel" },
                 { "if": {
                         "eq": [ "$arg", 0 ],
                         "then": [ { "return": "p" } ]
@@ -45,14 +45,14 @@
         "connect": [
             { "log": "nobra: connected" },
             { "@mapSpeed": { "arg": 0 } },
-            { "bleWriteNoResponse": "$_" }
+            { "ble_write_no_response": "$_" }
         ],
         "disconnect": [
             { "log": "nobra: disconnected" }
         ],
         "speed_change": [
             { "@mapSpeed": { "arg": "$arg" } },
-            { "bleWriteNoResponse": "$_" }
+            { "ble_write_no_response": "$_" }
         ]
     }
 }

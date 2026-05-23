@@ -15,14 +15,14 @@
         "ble_name_prefix": "LVS-Nora"
     },
     "config": {
-        "maxVibrate": {
+        "max_vibrate": {
             "type": "int",
             "default": 20,
             "min": 1,
             "max": 20,
             "label": "Vibration Max Level"
         },
-        "maxRotate": {
+        "max_rotate": {
             "type": "int",
             "default": 12,
             "min": 0,
@@ -34,7 +34,7 @@
         "mapVibrate": {
             "vars": { "maxLevel": 20, "speed": 0 },
             "actions": [
-                { "getPluginConfig": [ "maxVibrate", 20 ], "to": "$maxLevel" },
+                { "get_plugin_config": [ "max_vibrate", 20 ], "to": "$maxLevel" },
                 { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
                 { "div": [ "$speed", 255 ], "to": "$speed" },
                 { "round": "$speed", "to": "$speed" },
@@ -44,7 +44,7 @@
         "mapRotate": {
             "vars": { "maxLevel": 12, "speed": 0 },
             "actions": [
-                { "getPluginConfig": [ "maxRotate", 12 ], "to": "$maxLevel" },
+                { "get_plugin_config": [ "max_rotate", 12 ], "to": "$maxLevel" },
                 { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
                 { "div": [ "$speed", 255 ], "to": "$speed" },
                 { "round": "$speed", "to": "$speed" },
@@ -65,7 +65,7 @@
             { "to_string": "$_", "to": "$vlevel" },
             { "concat": [ "Vibrate:", "$vlevel", ";" ], "to": "$vcmd" },
             { "bleWrite": "$vcmd" },
-            { "getPluginConfig": [ "maxRotate", 12 ], "to": "$maxRotate" },
+            { "get_plugin_config": [ "max_rotate", 12 ], "to": "$maxRotate" },
             { "if": {
                     "gt": [ "$maxRotate", 0 ],
                     "then": [

@@ -1,0 +1,138 @@
+# Unit tests for individual event handlers
+#
+# Each test fires a single event (or minimal setup) and asserts
+# resulting state and host calls. File-level mocks silence all
+# host writes so assertions are precise.
+
+deftest for LovenseMaxDriver do
+  mock millis    = () -> 0
+  mock ble_write = (string data) -> 0
+  mock log       = (string msg) -> 0
+
+  describe "connect" do
+    test "initializes oscillation state" do
+      emit :connect
+
+      assert $air_phase         == 1
+      assert $current_air_level == 1      # air_min default
+      assert $current_period_ms == 2000   # osc_period_ms default
+      
+      expect log       called with "lovense-max: connected"
+      expect ble_write called with "Battery;"
+      expect ble_write called with "Air:Level:1;"
+    end
+
+    test "respects custom air_min config" do
+      config do
+        int air_min       = 3
+        int osc_period_ms = 5000
+      end
+
+      emit :connect
+
+      assert $current_air_level == 3
+      assert $current_period_ms == 5000
+      expect ble_write called with "Air:Level:3;"
+    end
+  end
+
+  describe "disconnect" do
+    test "logs message and does not write BLE" do
+      emit :disconnect
+
+      expect log called with "lovense-max: disconnected"
+      expect ble_write not called
+    end
+  end
+
+  describe "speed_change" do
+    test "maps midpoint speed to vibrate command" do
+      emit :speed_change with 128
+
+      expect ble_write called with "Vibrate:10;"
+    end
+
+    test "sends zero at speed 0" do
+      emit :speed_change with 0
+
+      expect ble_write called with "Vibrate:0;"
+    end
+
+    test "sends max_level at speed 255" do
+      emit :speed_change with 255
+
+      expect ble_write called with "Vibrate:20;"
+    end
+
+    test "updates oscillation period when osc_speed_linked" do
+      config do
+        bool osc_speed_linked = true
+      end
+
+      emit :speed_change with 128
+
+      # map_osc_period(128) = round((127 * 1600) / 255) + 400 = 1197
+      assert $current_period_ms == 1197
+    end
+
+    test "preserves oscillation period when osc_speed_linked is false" do
+      config do
+        bool osc_speed_linked = false
+        int  osc_period_ms    = 3000
+      end
+
+      $current_period_ms = 3000
+      emit :speed_change with 128
+
+      assert $current_period_ms == 3000
+    end
+  end
+
+  describe "tick" do
+    test "does nothing when oscillation disabled" do
+      config do
+        bool osc_enabled = false
+      end
+
+      emit :tick
+
+      expect ble_write not called
+    end
+
+    test "does not toggle before half period elapses" do
+      config do
+        bool osc_enabled   = true
+        int  osc_period_ms = 2000
+      end
+
+      $last_toggle_ms    = 0
+      $current_period_ms = 2000
+      $air_phase         = 1
+
+      mock millis = () -> 100
+      emit :tick
+
+      # half_period = 1000, elapsed = 100 < 1000 → no toggle
+      assert $air_phase == 1
+      expect ble_write not called
+    end
+
+    test "toggles air phase when half period elapses" do
+      config do
+        bool osc_enabled = true
+        int  air_max     = 4
+      end
+
+      $last_toggle_ms    = 0
+      $air_phase         = 1
+      $current_period_ms = 2000
+
+      mock millis = () -> 1000
+      emit :tick
+
+      # elapsed (1000) >= half_period (1000) → toggle to air_max
+      assert $air_phase == 0
+      expect ble_write called with "Air:Level:4;"
+    end
+  end
+end

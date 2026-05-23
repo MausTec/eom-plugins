@@ -32,11 +32,6 @@ Matches devices advertising with the `LVS-Max` name prefix (e.g. `LVS-Max20`).
 Copy the `lovense-max/` folder into `plugins/` on your SD card and restart. Enable
 Bluetooth, then scan and pair from Network Settings.
 
-## TODO
-
-A note to future-me: I noticed that the getPluginConfig takes a default, but the defaults
-are already defined in the config schema. 
-
 ## License
 
 MIT — see [LICENSE](../../LICENSE)

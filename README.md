@@ -21,10 +21,23 @@ App `*.mpk` files should be copied to the `apps/` directory.
 
 ## Development
 
-Plugins use the MT Actions JSON scripting system. See individual plugin READMEs for details.
+Plugins are developed using the Maus-Tec Software Development Kit to compile and test the *.mtp 
+Maus-Tec Plugin language. Any JSON files found in this repository are to be treated as the compiled
+plugin that your device runs, and the *.mtp file is the actual code.
 
-An SDK to facilitate development and distribution is coming soon. When it is ready, it will be live
-at [github.com/MausTec/eom-sdk](https://github.com/maustec/eom-sdk).
+The MT-SDK is available here: [github.com/MausTec/mt-sdk](https://github.com/maustec/mt-sdk).
+
+You can install it via NPM: `npm i -g @maustec/mt-sdk`
+
+When inside a folder containing the `plugin.mtp` source, run `mt-sdk build` to generate the JSON,
+and `mt-sdk test` to run the `*.test.mtp` files in the `test/` folder.
+
+The MTP and Test MTP syntax is heavily inspired by Elixir. The plugin execution runtime is very
+action sequence oriented, so the best mental model is data transformation through pipes, and pure
+functions. This is why Elixir-ish.
+
+TODO: Massive TODO, we still don't have proper documentation for the mt-sdk nor a release channel
+for plugins. 
 
 ## License
 

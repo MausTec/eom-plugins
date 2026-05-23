@@ -1,0 +1,116 @@
+# Sequence tests for full device lifecycle
+#
+# These fire multi-event sequences where state carries over between
+# steps, simulating realistic device sessions. millis is advanced
+# inline using sequential mock steps.
+
+deftest for LovenseMaxDriver do
+  mock ble_write = (string data) -> 0
+  mock log       = (string msg) -> 0
+
+  describe "connection lifecycle" do
+    test "initializes and responds to speed" do
+      mock millis = () -> 0
+      emit :connect
+
+      assert $air_phase         == 1
+      assert $current_air_level == 1
+      expect ble_write called with "Battery;"
+      expect ble_write called with "Air:Level:1;"
+
+      emit :speed_change with 128
+      expect ble_write called with "Vibrate:10;"
+    end
+
+    test "rapid speed changes produce correct commands" do
+      mock millis = () -> 0
+      emit :connect
+
+      emit :speed_change with 0
+      expect ble_write called with "Vibrate:0;"
+
+      emit :speed_change with 64
+      expect ble_write called with "Vibrate:5;"
+
+      emit :speed_change with 128
+      expect ble_write called with "Vibrate:10;"
+
+      emit :speed_change with 255
+      expect ble_write called with "Vibrate:20;"
+    end
+
+    test "disconnect after active session" do
+      mock millis = () -> 0
+      emit :connect
+      emit :speed_change with 128
+
+      mock millis = () -> 1000
+      emit :tick
+
+      emit :disconnect
+      expect log called with "lovense-max: disconnected"
+    end
+  end
+
+  describe "oscillation cycle" do
+    config do
+      bool osc_enabled   = true
+      int  osc_period_ms = 2000
+      int  air_min       = 1
+      int  air_max       = 4
+    end
+
+    test "toggles air level at half-period intervals" do
+      mock millis = () -> 0
+      emit :connect
+
+      # 500ms — too early, no toggle
+      mock millis = () -> 500
+      emit :tick
+      assert $air_phase == 1
+
+      # 1000ms — half period reached, toggle to air_max
+      mock millis = () -> 1000
+      emit :tick
+      assert $air_phase         == 0
+      assert $current_air_level == 4
+
+      # 1500ms — too early for second toggle
+      mock millis = () -> 1500
+      emit :tick
+      assert $air_phase == 0
+
+      # 2000ms — toggle back to air_min
+      mock millis = () -> 2000
+      emit :tick
+      assert $air_phase         == 1
+      assert $current_air_level == 1
+    end
+  end
+
+  describe "speed-linked oscillation" do
+    config do
+      bool osc_speed_linked = true
+      bool osc_enabled      = true
+      int  osc_period_ms    = 2000
+      int  osc_period_min_ms = 400
+      int  air_min          = 1
+      int  air_max          = 4
+    end
+
+    test "adjusts oscillation period mid-session" do
+      mock millis = () -> 0
+      emit :connect
+      assert $current_period_ms == 2000
+
+      emit :speed_change with 200
+      # map_osc_period(200) = round((55 * 1600) / 255) + 400 = 745
+      assert $current_period_ms == 745
+
+      # half_period = 372, so tick at 373 should toggle
+      mock millis = () -> 373
+      emit :tick
+      assert $air_phase == 0
+    end
+  end
+end

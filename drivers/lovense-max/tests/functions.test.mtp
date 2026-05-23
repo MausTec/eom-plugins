@@ -1,0 +1,84 @@
+# Unit tests for pure/helper functions
+#
+# Tests fn and def declarations in isolation. No event lifecycle.
+# File-level mock covers ble_write for set_air_level tests.
+
+deftest for LovenseMaxDriver do
+  mock ble_write = (string data) -> 0
+
+  describe "map_speed" do
+    test "scales 255 to max_level" do
+      call map_speed(255)
+      assert result == 20
+    end
+
+    test "scales 0 to 0" do
+      call map_speed(0)
+      assert result == 0
+    end
+
+    test "scales midpoint" do
+      call map_speed(128)
+      assert result == 10
+    end
+
+    test "respects config override" do
+      config do
+        int max_level = 10
+      end
+
+      call map_speed(255)
+      assert result == 10
+
+      call map_speed(128)
+      assert result == 5
+    end
+  end
+
+  describe "set_air_level" do
+    test "updates global and sends BLE command" do
+      call set_air_level(3)
+
+      assert $current_air_level == 3
+      expect ble_write called with "Air:Level:3;"
+    end
+
+    test "sends correct command for boundary values" do
+      call set_air_level(0)
+      expect ble_write called with "Air:Level:0;"
+
+      call set_air_level(5)
+      expect ble_write called with "Air:Level:5;"
+    end
+  end
+
+  describe "map_osc_period" do
+    test "returns max period at zero speed" do
+      # At speed 0: round((255 - 0) * (2000 - 400) / 255) + 400 = 2000
+      call map_osc_period(0)
+      assert result == 2000
+    end
+
+    test "returns min period at full speed" do
+      # At speed 255: round(0 * 1600 / 255) + 400 = 400
+      call map_osc_period(255)
+      assert result == 400
+    end
+
+    test "scales linearly with custom config" do
+      config do
+        int osc_period_ms     = 1000
+        int osc_period_min_ms = 200
+      end
+
+      call map_osc_period(0)
+      assert result == 1000
+
+      call map_osc_period(255)
+      assert result == 200
+
+      call map_osc_period(128)
+      assert result == 598  # round((127 * 800) / 255) + 200
+    end
+  end
+end
