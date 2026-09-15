@@ -3,6 +3,7 @@
     "display_name": "Lovense Max Driver",
     "version": "1.0.0",
     "sdk_version": "~> 1.1.0",
+    "type": "ble_driver",
     "description": "BLE driver for Lovense Max: vibration motor and oscillating pneumatic air actuator",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
