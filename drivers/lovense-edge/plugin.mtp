@@ -1,0 +1,59 @@
+# Lovense Edge Driver Plugin for EOM3K
+#
+# BLE driver for the Lovense Edge and Edge 2: dual independent vibration
+# motors (Motor 1 in the insertable tip, Motor 2 in the external arm). Both
+# motors receive the same EOM speed signal, scaled independently by their own
+# configured max level. Setting a motor's max level to 0 effectively disables
+# it while still keeping the driver's command sequence intact.
+#
+# Author: Maus-Tec Electronics
+# License: MIT
+#
+# Maus-Tec Electronics is not affiliated with Lovense. This plugin is developed
+# independently and is not endorsed by Lovense. This plugin is provided "as is"
+# without any warranties.
+#
+defplugin LovenseEdgeDriver do
+  @display_name "Lovense Edge Driver"
+  @version      "1.0.0"
+  @sdk_version  "1.0.0"
+  @type         "ble_driver"
+  @description  "BLE driver for Lovense Edge and Edge 2: dual independent vibration motors"
+  @author       "Maus-Tec Electronics"
+  @license      "MIT"
+  @repository   "https://github.com/maustec/eom-plugins"
+  @platforms    ["@eom"]
+  @permissions  ["ble:write"]
+
+  match do
+    ble_name_prefix "LVS-Edge"
+  end
+
+  config do
+    # Motor 1 Max Level
+    int motor_1_max_level = 20, min: 0, max: 20
+
+    # Motor 2 Max Level
+    int motor_2_max_level = 20, min: 0, max: 20
+  end
+
+  # Maps a 0-255 speed value to a 0-motor_1_max_level command value.
+  fn map_motor_1 = (int arg) -> round(arg * config.motor_1_max_level / 255)
+
+  # Maps a 0-255 speed value to a 0-motor_2_max_level command value.
+  fn map_motor_2 = (int arg) -> round(arg * config.motor_2_max_level / 255)
+
+  on :connect do
+    log "lovense-edge: connected"
+    ble_write "Battery;"
+  end
+
+  on :disconnect do
+    log "lovense-edge: disconnected"
+  end
+
+  on :speed_change with speed do
+    speed |> map_motor_1() |> to_string() |> concat("Vibrate:", $_, ";") |> ble_write()
+    speed |> map_motor_2() |> to_string() |> concat("Vibrate2:", $_, ";") |> ble_write()
+  end
+end

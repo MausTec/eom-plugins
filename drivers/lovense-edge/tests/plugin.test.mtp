@@ -1,0 +1,57 @@
+# Tests for the Lovense Edge driver (dual independent motors)
+
+deftest for LovenseEdgeDriver do
+  mock ble_write = (string data) -> 0
+
+  describe "map_motor_1" do
+    test "scales 255 to motor_1_max_level" do
+      call map_motor_1(255)
+      assert result == 20
+    end
+
+    test "respects config override" do
+      config do
+        int motor_1_max_level = 10
+      end
+
+      call map_motor_1(255)
+      assert result == 10
+    end
+  end
+
+  describe "map_motor_2" do
+    test "scales 255 to motor_2_max_level" do
+      call map_motor_2(255)
+      assert result == 20
+    end
+  end
+
+  describe "lifecycle" do
+    test "connect queries battery" do
+      emit :connect
+      expect ble_write called with "Battery;"
+    end
+  end
+
+  describe "speed_change" do
+    test "drives both motors independently" do
+      config do
+        int motor_1_max_level = 20
+        int motor_2_max_level = 10
+      end
+
+      emit :speed_change with 255
+      expect ble_write called with "Vibrate:20;"
+      expect ble_write called with "Vibrate2:10;"
+    end
+
+    test "a motor at max_level 0 still sends a zero command" do
+      config do
+        int motor_2_max_level = 0
+      end
+
+      emit :speed_change with 255
+      expect ble_write called with "Vibrate2:0;"
+    end
+  end
+end

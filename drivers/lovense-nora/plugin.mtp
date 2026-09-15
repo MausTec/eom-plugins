@@ -1,0 +1,62 @@
+# Lovense Nora Driver Plugin for EOM3K
+#
+# BLE driver for the Lovense Nora: an internal vibration motor plus an
+# externally rotating arm. Rotation direction is left to the hardware button
+# on the device; this driver only sets rotation speed. Setting max_rotate to
+# 0 disables rotation commands entirely, leaving the arm at whatever speed it
+# was last set to.
+#
+# Author: Maus-Tec Electronics
+# License: MIT
+#
+# Maus-Tec Electronics is not affiliated with Lovense. This plugin is developed
+# independently and is not endorsed by Lovense. This plugin is provided "as is"
+# without any warranties.
+#
+defplugin LovenseNoraDriver do
+  @display_name "Lovense Nora Driver"
+  @version      "1.0.0"
+  @sdk_version  "1.0.0"
+  @type         "ble_driver"
+  @description  "BLE driver for Lovense Nora: vibration motor and independently configurable rotation arm"
+  @author       "Maus-Tec Electronics"
+  @license      "MIT"
+  @repository   "https://github.com/maustec/eom-plugins"
+  @platforms    ["@eom"]
+  @permissions  ["ble:write"]
+
+  match do
+    ble_name_prefix "LVS-Nora"
+  end
+
+  config do
+    # Vibration Max Level
+    int max_vibrate = 20, min: 1, max: 20
+
+    # Rotation Max Level (0 = disabled)
+    int max_rotate = 12, min: 0, max: 20
+  end
+
+  # Maps a 0-255 speed value to a 0-max_vibrate command value.
+  fn map_vibrate = (int arg) -> round(arg * config.max_vibrate / 255)
+
+  # Maps a 0-255 speed value to a 0-max_rotate command value.
+  fn map_rotate = (int arg) -> round(arg * config.max_rotate / 255)
+
+  on :connect do
+    log "lovense-nora: connected"
+    ble_write "Battery;"
+  end
+
+  on :disconnect do
+    log "lovense-nora: disconnected"
+  end
+
+  on :speed_change with speed do
+    speed |> map_vibrate() |> to_string() |> concat("Vibrate:", $_, ";") |> ble_write()
+
+    if config.max_rotate > 0 do
+      speed |> map_rotate() |> to_string() |> concat("Rotate:", $_, ";") |> ble_write()
+    end
+  end
+end

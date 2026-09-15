@@ -1,80 +1,83 @@
 {
-    "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
     "name": "lovense-nora-driver",
+    "display_name": "Lovense Nora Driver",
     "version": "1.0.0",
     "sdk_version": "1.0.0",
-    "display_name": "Lovense Nora Driver",
+    "type": "ble_driver",
     "description": "BLE driver for Lovense Nora: vibration motor and independently configurable rotation arm",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
     "repository": "https://github.com/maustec/eom-plugins",
-    "type": "ble_driver",
     "platforms": [ "@eom" ],
     "permissions": [ "ble:write" ],
-    "match": {
-        "ble_name_prefix": "LVS-Nora"
-    },
+    "match": { "ble_name_prefix": "LVS-Nora" },
     "config": {
         "max_vibrate": {
             "type": "int",
             "default": 20,
+            "label": "Vibration Max Level",
             "min": 1,
-            "max": 20,
-            "label": "Vibration Max Level"
+            "max": 20
         },
         "max_rotate": {
             "type": "int",
             "default": 12,
+            "label": "Rotation Max Level (0 = disabled)",
             "min": 0,
-            "max": 20,
-            "label": "Rotation Max Level (0 = disabled)"
+            "max": 20
         }
     },
     "functions": {
-        "mapVibrate": {
-            "vars": { "maxLevel": 20, "speed": 0 },
+        "map_vibrate": {
+            "args": [ "arg" ],
             "actions": [
-                { "get_plugin_config": [ "max_vibrate", 20 ], "to": "$maxLevel" },
-                { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
-                { "div": [ "$speed", 255 ], "to": "$speed" },
-                { "round": "$speed", "to": "$speed" },
-                { "return": "$speed" }
+                { "get_config": "max_vibrate" },
+                { "mul": [ "$arg", "$_" ] },
+                { "div": [ "$_", 255 ] },
+                { "round": "$_" },
+                { "return": "$_" }
             ]
         },
-        "mapRotate": {
-            "vars": { "maxLevel": 12, "speed": 0 },
+        "map_rotate": {
+            "args": [ "arg" ],
             "actions": [
-                { "get_plugin_config": [ "max_rotate", 12 ], "to": "$maxLevel" },
-                { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
-                { "div": [ "$speed", 255 ], "to": "$speed" },
-                { "round": "$speed", "to": "$speed" },
-                { "return": "$speed" }
+                { "get_config": "max_rotate" },
+                { "mul": [ "$arg", "$_" ] },
+                { "div": [ "$_", 255 ] },
+                { "round": "$_" },
+                { "return": "$_" }
             ]
         }
     },
     "events": {
-        "connect": [
-            { "log": "lovense-nora: connected" },
-            { "bleWrite": "Battery;" }
-        ],
-        "disconnect": [
-            { "log": "lovense-nora: disconnected" }
-        ],
-        "speed_change": [
-            { "@mapVibrate": { "arg": "$arg" } },
-            { "to_string": "$_", "to": "$vlevel" },
-            { "concat": [ "Vibrate:", "$vlevel", ";" ], "to": "$vcmd" },
-            { "bleWrite": "$vcmd" },
-            { "get_plugin_config": [ "max_rotate", 12 ], "to": "$maxRotate" },
-            { "if": {
-                    "gt": [ "$maxRotate", 0 ],
-                    "then": [
-                        { "@mapRotate": { "arg": "$arg" } },
-                        { "to_string": "$_", "to": "$rlevel" },
-                        { "concat": [ "Rotate:", "$rlevel", ";" ], "to": "$rcmd" },
-                        { "bleWrite": "$rcmd" }
-                    ]
-                } }
-        ]
+        "connect": {
+            "vars": [ ],
+            "actions": [ { "log": "lovense-nora: connected" }, { "ble_write": "Battery;" } ]
+        },
+        "disconnect": { "vars": [ ], "actions": [ { "log": "lovense-nora: disconnected" } ] },
+        "speed_change": {
+            "vars": [ "__t0" ],
+            "actions": [
+                { "set": "$speed" },
+                { "@map_vibrate": "$_" },
+                { "to_string": "$_" },
+                { "concat": [ "Vibrate:", "$_", ";" ] },
+                { "ble_write": "$_" },
+                { "get_config": "max_rotate", "to": "$__t0" },
+                {
+                    "if": {
+                        "gt": [ "$__t0", 0 ],
+                        "then": [
+                            { "set": "$speed" },
+                            { "@map_rotate": "$_" },
+                            { "to_string": "$_" },
+                            { "concat": [ "Rotate:", "$_", ";" ] },
+                            { "ble_write": "$_" }
+                        ]
+                    }
+                }
+            ],
+            "args": [ "speed" ]
+        }
     }
 }

@@ -1,74 +1,75 @@
 {
-    "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
     "name": "lovense-edge-driver",
+    "display_name": "Lovense Edge Driver",
     "version": "1.0.0",
     "sdk_version": "1.0.0",
-    "display_name": "Lovense Edge Driver",
+    "type": "ble_driver",
     "description": "BLE driver for Lovense Edge and Edge 2: dual independent vibration motors",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
     "repository": "https://github.com/maustec/eom-plugins",
-    "type": "ble_driver",
     "platforms": [ "@eom" ],
     "permissions": [ "ble:write" ],
-    "match": {
-        "ble_name_prefix": "LVS-Edge"
-    },
+    "match": { "ble_name_prefix": "LVS-Edge" },
     "config": {
         "motor_1_max_level": {
             "type": "int",
             "default": 20,
+            "label": "Motor 1 Max Level",
             "min": 0,
-            "max": 20,
-            "label": "Motor 1 Max Level"
+            "max": 20
         },
         "motor_2_max_level": {
             "type": "int",
             "default": 20,
+            "label": "Motor 2 Max Level",
             "min": 0,
-            "max": 20,
-            "label": "Motor 2 Max Level"
+            "max": 20
         }
     },
     "functions": {
-        "mapMotor1": {
-            "vars": { "maxLevel": 20, "speed": 0 },
+        "map_motor_1": {
+            "args": [ "arg" ],
             "actions": [
-                { "get_plugin_config": [ "motor_1_max_level", 20 ], "to": "$maxLevel" },
-                { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
-                { "div": [ "$speed", 255 ], "to": "$speed" },
-                { "round": "$speed", "to": "$speed" },
-                { "return": "$speed" }
+                { "get_config": "motor_1_max_level" },
+                { "mul": [ "$arg", "$_" ] },
+                { "div": [ "$_", 255 ] },
+                { "round": "$_" },
+                { "return": "$_" }
             ]
         },
-        "mapMotor2": {
-            "vars": { "maxLevel": 20, "speed": 0 },
+        "map_motor_2": {
+            "args": [ "arg" ],
             "actions": [
-                { "get_plugin_config": [ "motor_2_max_level", 20 ], "to": "$maxLevel" },
-                { "mul": [ "$arg", "$maxLevel" ], "to": "$speed" },
-                { "div": [ "$speed", 255 ], "to": "$speed" },
-                { "round": "$speed", "to": "$speed" },
-                { "return": "$speed" }
+                { "get_config": "motor_2_max_level" },
+                { "mul": [ "$arg", "$_" ] },
+                { "div": [ "$_", 255 ] },
+                { "round": "$_" },
+                { "return": "$_" }
             ]
         }
     },
     "events": {
-        "connect": [
-            { "log": "lovense-edge: connected" },
-            { "bleWrite": "Battery;" }
-        ],
-        "disconnect": [
-            { "log": "lovense-edge: disconnected" }
-        ],
-        "speed_change": [
-            { "@mapMotor1": { "arg": "$arg" } },
-            { "to_string": "$_", "to": "$level1" },
-            { "concat": [ "Vibrate:", "$level1", ";" ], "to": "$cmd" },
-            { "bleWrite": "$cmd" },
-            { "@mapMotor2": { "arg": "$arg" } },
-            { "to_string": "$_", "to": "$level2" },
-            { "concat": [ "Vibrate2:", "$level2", ";" ], "to": "$cmd" },
-            { "bleWrite": "$cmd" }
-        ]
+        "connect": {
+            "vars": [ ],
+            "actions": [ { "log": "lovense-edge: connected" }, { "ble_write": "Battery;" } ]
+        },
+        "disconnect": { "vars": [ ], "actions": [ { "log": "lovense-edge: disconnected" } ] },
+        "speed_change": {
+            "vars": [ ],
+            "actions": [
+                { "set": "$speed" },
+                { "@map_motor_1": "$_" },
+                { "to_string": "$_" },
+                { "concat": [ "Vibrate:", "$_", ";" ] },
+                { "ble_write": "$_" },
+                { "set": "$speed" },
+                { "@map_motor_2": "$_" },
+                { "to_string": "$_" },
+                { "concat": [ "Vibrate2:", "$_", ";" ] },
+                { "ble_write": "$_" }
+            ],
+            "args": [ "speed" ]
+        }
     }
 }

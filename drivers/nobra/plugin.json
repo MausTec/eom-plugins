@@ -1,58 +1,55 @@
 {
-    "$schema": "https://schemas.maus-tec.com/mt-actions/v1.0.0/plugin.json",
     "name": "nobra-driver",
+    "display_name": "Nobra Driver",
     "version": "1.0.0",
     "sdk_version": "1.0.0",
-    "display_name": "Nobra Driver",
+    "type": "ble_driver",
     "description": "BLE driver for Nobra silicone vibrators",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
     "repository": "https://github.com/maustec/eom-plugins",
-    "type": "ble_driver",
     "platforms": [ "@eom" ],
     "permissions": [ "ble:write" ],
-    "match": {
-        "ble_service_uuid": "0000ABF0-0000-1000-8000-00805F9B34FB"
-    },
+    "match": { "ble_name": "NobraControl" },
     "config": {
         "max_level": {
             "type": "int",
             "default": 15,
+            "label": "Max Speed Level",
             "min": 1,
-            "max": 15,
-            "label": "Max Speed Level"
+            "max": 15
         }
     },
     "functions": {
-        "mapSpeed": {
-            "vars": { "maxLevel": 15, "proportion": 0.0, "nobraSpeed": 0, "charCode": 0 },
+        "map_speed": {
+            "args": [ "arg" ],
+            "vars": [ "char_code" ],
             "actions": [
-                { "get_plugin_config": [ "max_level", 15 ], "to": "$maxLevel" },
-                { "if": {
-                        "eq": [ "$arg", 0 ],
-                        "then": [ { "return": "p" } ]
-                    } },
-                { "div": [ "$arg", 255.0 ], "to": "$proportion" },
-                { "mul": [ "$proportion", "$maxLevel" ], "to": "$nobraSpeed" },
-                { "round": "$nobraSpeed", "to": "$nobraSpeed" },
-                { "add": [ 96, "$nobraSpeed" ], "to": "$charCode" },
-                { "chr": "$charCode", "to": "$_" },
+                { "if": { "eq": [ "$arg", 0 ], "then": [ { "return": "p" } ] } },
+                { "get_config": "max_level" },
+                { "mul": [ "$arg", "$_" ] },
+                { "div": [ "$_", 255 ] },
+                { "round": "$_" },
+                { "add": [ 96, "$_" ], "to": "$char_code" },
+                { "chr": "$char_code" },
                 { "return": "$_" }
             ]
         }
     },
     "events": {
-        "connect": [
-            { "log": "nobra: connected" },
-            { "@mapSpeed": { "arg": 0 } },
-            { "ble_write_no_response": "$_" }
-        ],
-        "disconnect": [
-            { "log": "nobra: disconnected" }
-        ],
-        "speed_change": [
-            { "@mapSpeed": { "arg": "$arg" } },
-            { "ble_write_no_response": "$_" }
-        ]
+        "connect": {
+            "vars": [ ],
+            "actions": [
+                { "log": "nobra: connected" },
+                { "@map_speed": 0 },
+                { "ble_write_no_response": "$_" }
+            ]
+        },
+        "disconnect": { "vars": [ ], "actions": [ { "log": "nobra: disconnected" } ] },
+        "speed_change": {
+            "vars": [ ],
+            "actions": [ { "@map_speed": "$speed" }, { "ble_write_no_response": "$_" } ],
+            "args": [ "speed" ]
+        }
     }
 }

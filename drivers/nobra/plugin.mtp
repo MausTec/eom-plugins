@@ -1,0 +1,58 @@
+# Nobra Driver Plugin for EOM3K
+#
+# BLE driver for Nobra control boxes: single-character speed commands sent
+# without a response ('p' for stop, 'a' through 'o' for levels 1-15). The
+# device must be in Bluetooth mode (green indicator) before pairing. If it 
+# isn't hold both outer buttons on the control box and power-cycle it.
+#
+# Author: Maus-Tec Electronics
+# License: MIT
+#
+# Maus-Tec Electronics is not affiliated with Nobra. This plugin is developed
+# independently and is not endorsed by Nobra. This plugin is provided "as is"
+# without any warranties.
+#
+defplugin NobraDriver do
+  @display_name "Nobra Driver"
+  @version      "1.0.0"
+  @sdk_version  "1.0.0"
+  @type         "ble_driver"
+  @description  "BLE driver for Nobra silicone vibrators"
+  @author       "Maus-Tec Electronics"
+  @license      "MIT"
+  @repository   "https://github.com/maustec/eom-plugins"
+  @platforms    ["@eom"]
+  @permissions  ["ble:write"]
+
+  match do
+    ble_name "NobraControl"
+  end
+
+  config do
+    # Max Speed Level
+    int max_level = 15, min: 1, max: 15
+  end
+
+  # Maps a 0-255 speed value to a Nobra command char: 'p' (stop) or 'a'-'o' (1-15).
+  def map_speed(int arg) do
+    return "p" if arg == 0
+
+    int char_code
+    char_code = 96 + round(arg * config.max_level / 255)
+
+    return chr(char_code)
+  end
+
+  on :connect do
+    log "nobra: connected"
+    map_speed(0) |> ble_write_no_response()
+  end
+
+  on :disconnect do
+    log "nobra: disconnected"
+  end
+
+  on :speed_change with speed do
+    map_speed(speed) |> ble_write_no_response()
+  end
+end

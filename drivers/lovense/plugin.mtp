@@ -1,24 +1,27 @@
 # Lovense Driver Plugin for EOM3K
 #
-# Note: This plugin is designed to work with Lovense devices that have a BLE name prefix of "LVS-". 
-# It allows you to control the vibration motor by sending speed commands. The maximum vibration level 
-# can be configured using the `max_level` setting.
+# Generic BLE driver for single-motor Lovense vibrators (Lush, Lush 2, Hush,
+# Hush 2, Ambi, Domi). Device-specific drivers exist for Edge, Nora, and Max —
+# do not install this alongside one of those, or run two copies of this one;
+# plugin matching is first-come-first-served on the shared "LVS-" prefix.
 #
 # Author: Maus-Tec Electronics
 # License: MIT
-# 
-# Maus-Tec Electronics is not affiliated with Lovense. This plugin is developed independently and is 
-# not endorsed by Lovense. This Plugin is provided "as is" without any warranties.
+#
+# Maus-Tec Electronics is not affiliated with Lovense. This plugin is developed
+# independently and is not endorsed by Lovense. This plugin is provided "as is"
+# without any warranties.
 #
 defplugin LovenseDriver do
   @display_name "Lovense Driver"
   @version      "1.0.0"
-  @sdk_version  "~> 1.1.0"
+  @sdk_version  "1.0.0"
+  @type         "ble_driver"
   @description  "BLE driver for Lovense single vibration motor toys"
   @author       "Maus-Tec Electronics"
   @license      "MIT"
   @repository   "https://github.com/maustec/eom-plugins"
-  @platforms    ["eom3k >= 2.0.2"]
+  @platforms    ["@eom"]
   @permissions  ["ble:write"]
 
   match do
@@ -30,19 +33,19 @@ defplugin LovenseDriver do
     int max_level = 20, min: 0, max: 5
   end
 
-  # Maps a 0-255 speed value to a 0 - config.max_level motor command value. 
+  # Maps a 0-255 speed value to a 0-max_level motor command value.
   fn map_speed = (int arg) -> round(arg * config.max_level / 255)
 
   on :connect do
-    log "lovense-max: connected"
+    log "lovense: connected"
     ble_write "Battery;"
   end
 
   on :disconnect do
-    log "lovense-max: disconnected"
+    log "lovense: disconnected"
   end
 
   on :speed_change with speed do
-      speed |> map_speed() |> to_string() |> concat("Vibrate:", $_, ";") |> ble_write()
+    speed |> map_speed() |> to_string() |> concat("Vibrate:", $_, ";") |> ble_write()
   end
 end

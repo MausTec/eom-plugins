@@ -1,0 +1,45 @@
+# Tests for the Nobra driver (single-character speed commands)
+
+deftest for NobraDriver do
+  mock ble_write_no_response = (string data) -> 0
+
+  describe "map_speed" do
+    test "zero speed returns stop" do
+      call map_speed(0)
+      assert result == "p"
+    end
+
+    test "full speed returns max_level as a char" do
+      call map_speed(255)
+      assert result == "o"
+    end
+
+    test "respects config override" do
+      config do
+        int max_level = 5
+      end
+
+      call map_speed(255)
+      assert result == "e"
+    end
+  end
+
+  describe "lifecycle" do
+    test "connect sends stop" do
+      emit :connect
+      expect ble_write_no_response called with "p"
+    end
+  end
+
+  describe "speed_change" do
+    test "sends the mapped level char" do
+      emit :speed_change with 255
+      expect ble_write_no_response called with "o"
+    end
+
+    test "sends stop at zero speed" do
+      emit :speed_change with 0
+      expect ble_write_no_response called with "p"
+    end
+  end
+end

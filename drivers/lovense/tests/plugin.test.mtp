@@ -1,0 +1,54 @@
+# Tests for the generic single-motor Lovense driver
+
+deftest for LovenseDriver do
+  mock ble_write = (string data) -> 0
+
+  describe "map_speed" do
+    test "scales 255 to max_level" do
+      call map_speed(255)
+      assert result == 20
+    end
+
+    test "scales 0 to 0" do
+      call map_speed(0)
+      assert result == 0
+    end
+
+    test "respects config override" do
+      config do
+        int max_level = 10
+      end
+
+      call map_speed(255)
+      assert result == 10
+    end
+  end
+
+  describe "lifecycle" do
+    test "connect logs and queries battery" do
+      emit :connect
+      expect ble_write called with "Battery;"
+    end
+
+    test "disconnect does not touch BLE" do
+      emit :disconnect
+    end
+  end
+
+  describe "speed_change" do
+    test "sends scaled Vibrate command" do
+      emit :speed_change with 128
+      expect ble_write called with "Vibrate:10;"
+    end
+
+    test "clamps to zero" do
+      emit :speed_change with 0
+      expect ble_write called with "Vibrate:0;"
+    end
+
+    test "clamps to max_level at full speed" do
+      emit :speed_change with 255
+      expect ble_write called with "Vibrate:20;"
+    end
+  end
+end

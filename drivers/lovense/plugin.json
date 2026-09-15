@@ -2,12 +2,13 @@
     "name": "lovense-driver",
     "display_name": "Lovense Driver",
     "version": "1.0.0",
-    "sdk_version": "~> 1.1.0",
+    "sdk_version": "1.0.0",
+    "type": "ble_driver",
     "description": "BLE driver for Lovense single vibration motor toys",
     "author": "Maus-Tec Electronics",
     "license": "MIT",
     "repository": "https://github.com/maustec/eom-plugins",
-    "platforms": [ "eom3k >= 2.0.2" ],
+    "platforms": [ "@eom" ],
     "permissions": [ "ble:write" ],
     "match": { "ble_name_prefix": "LVS-" },
     "config": {
@@ -23,7 +24,7 @@
         "map_speed": {
             "args": [ "arg" ],
             "actions": [
-                { "get_plugin_config": "max_level" },
+                { "get_config": "max_level" },
                 { "mul": [ "$arg", "$_" ] },
                 { "div": [ "$_", 255 ] },
                 { "round": "$_" },
@@ -34,17 +35,17 @@
     "events": {
         "connect": {
             "vars": [ ],
-            "actions": [ { "log": "lovense-max: connected" }, { "ble_write": "Battery;" } ]
+            "actions": [ { "log": "lovense: connected" }, { "ble_write": "Battery;" } ]
         },
-        "disconnect": { "vars": [ ], "actions": [ { "log": "lovense-max: disconnected" } ] },
+        "disconnect": { "vars": [ ], "actions": [ { "log": "lovense: disconnected" } ] },
         "speed_change": {
             "vars": [ ],
             "actions": [
                 { "set": "$speed" },
-                { "@map_speed": [ ] },
-                { "to_string": [ ] },
+                { "@map_speed": "$_" },
+                { "to_string": "$_" },
                 { "concat": [ "Vibrate:", "$_", ";" ] },
-                { "ble_write": [ ] }
+                { "ble_write": "$_" }
             ],
             "args": [ "speed" ]
         }

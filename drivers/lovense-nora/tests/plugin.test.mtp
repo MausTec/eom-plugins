@@ -1,0 +1,43 @@
+# Tests for the Lovense Nora driver (vibration + rotation)
+
+deftest for LovenseNoraDriver do
+  mock ble_write = (string data) -> 0
+
+  describe "map_vibrate" do
+    test "scales 255 to max_vibrate" do
+      call map_vibrate(255)
+      assert result == 20
+    end
+  end
+
+  describe "map_rotate" do
+    test "scales 255 to max_rotate" do
+      call map_rotate(255)
+      assert result == 12
+    end
+  end
+
+  describe "lifecycle" do
+    test "connect queries battery" do
+      emit :connect
+      expect ble_write called with "Battery;"
+    end
+  end
+
+  describe "speed_change" do
+    test "drives vibration and rotation together" do
+      emit :speed_change with 255
+      expect ble_write called with "Vibrate:20;"
+      expect ble_write called with "Rotate:12;"
+    end
+
+    test "max_rotate of 0 suppresses rotation commands" do
+      config do
+        int max_rotate = 0
+      end
+
+      emit :speed_change with 255
+      expect ble_write called with "Vibrate:20;"
+    end
+  end
+end
