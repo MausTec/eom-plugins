@@ -1,0 +1,195 @@
+# Tests for the HW API Smoke Test plugin
+
+deftest for HwApiSmokeTest do
+  mock notify = (string text) -> 0
+  mock set_led_color = (int r, int g, int b) -> 0
+  mock lock_controls = (string reason) -> 0
+  mock unlock_controls = () -> 0
+  mock request_motor_control = () -> 0
+  mock release_motor_control = () -> 0
+  mock set_motor_speed = (int speed) -> 0
+  mock get_motor_speed = () -> 0
+  mock get_output_mode = () -> "manual"
+  mock millis = () -> 0
+
+  describe "arming" do
+    test "does nothing when disabled" do
+      emit :mode_set with 1
+      assert $state == 0
+    end
+
+    test "starts the LED sequence when enabled and automatic mode starts" do
+      config do
+        bool enabled = true
+      end
+
+      emit :mode_set with 1
+      assert $state == 1
+      expect set_led_color called with 255, 0, 0
+    end
+  end
+
+  describe "LED sequence" do
+    test "cycles red -> green -> blue on step_hold_ms elapsing" do
+      config do
+        bool enabled = true
+        int step_hold_ms = 1000
+      end
+
+      emit :mode_set with 1
+
+      mock millis = () -> 1000
+      emit :tick
+      assert $state == 2
+      expect set_led_color called with 0, 255, 0
+
+      mock millis = () -> 2000
+      emit :tick
+      assert $state == 3
+      expect set_led_color called with 0, 0, 255
+    end
+  end
+
+  describe "motor ramp" do
+    test "claims motor control and ramps up after the LED sequence" do
+      config do
+        bool enabled = true
+        int step_hold_ms = 1000
+        int ramp_step = 100
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 1000
+      emit :tick
+      mock millis = () -> 2000
+      emit :tick
+      mock millis = () -> 3000
+      emit :tick
+
+      assert $state == 4
+      expect request_motor_control called
+      expect set_motor_speed called with 0
+    end
+
+    test "moves to hold once speed reaches 255" do
+      config do
+        bool enabled = true
+        int step_hold_ms = 1000
+        int ramp_step = 100
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 1000
+      emit :tick
+      mock millis = () -> 2000
+      emit :tick
+      mock millis = () -> 3000
+      emit :tick
+
+      mock get_motor_speed = () -> 255
+      emit :tick
+      assert $state == 5
+      expect notify called with "hw-api-smoke-test: motor at full speed"
+    end
+  end
+
+  describe "ramp down, release, and lock" do
+    test "releases motor control and locks controls once ramped down" do
+      config do
+        bool enabled = true
+        int step_hold_ms = 1000
+        int ramp_step = 100
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 1000
+      emit :tick
+      mock millis = () -> 2000
+      emit :tick
+      mock millis = () -> 3000
+      emit :tick
+
+      mock get_motor_speed = () -> 255
+      emit :tick
+      mock millis = () -> 4000
+      emit :tick
+
+      mock get_motor_speed = () -> 0
+      emit :tick
+
+      assert $state == 7
+      expect release_motor_control called
+      expect lock_controls called with "hw-api-smoke-test: lock/unlock check"
+    end
+
+    test "auto-unlocks once lock_hold_seconds elapses" do
+      config do
+        bool enabled = true
+        int step_hold_ms = 1000
+        int ramp_step = 100
+        int lock_hold_seconds = 1
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 1000
+      emit :tick
+      mock millis = () -> 2000
+      emit :tick
+      mock millis = () -> 3000
+      emit :tick
+      mock get_motor_speed = () -> 255
+      emit :tick
+      mock millis = () -> 4000
+      emit :tick
+      mock get_motor_speed = () -> 0
+      emit :tick
+
+      mock millis = () -> 5000
+      emit :tick
+
+      assert $state == 0
+      expect unlock_controls called
+      expect notify called with "hw-api-smoke-test: controls unlocked, smoke test complete"
+    end
+  end
+
+  describe "manual abort" do
+    test "returning to manual mode releases motor control and unlocks if held" do
+      config do
+        bool enabled = true
+        int step_hold_ms = 1000
+        int ramp_step = 100
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 1000
+      emit :tick
+      mock millis = () -> 2000
+      emit :tick
+      mock millis = () -> 3000
+      emit :tick
+
+      emit :mode_set with 0
+
+      assert $state == 0
+      expect release_motor_control called
+    end
+  end
+
+  describe "passive event logging" do
+    test "logs orgasm_denial without side effects" do
+      emit :orgasm_denial
+      expect notify called with "hw-api-smoke-test: orgasm_denial event observed"
+    end
+
+    test "logs orgasm_permit without side effects" do
+      emit :orgasm_permit
+      expect notify called with "hw-api-smoke-test: orgasm_permit event observed"
+    end
+
+    test "logs orgasm_start without side effects" do
+      emit :orgasm_start
+      expect notify called with "hw-api-smoke-test: orgasm_start event observed"
+    end
+  end
+end

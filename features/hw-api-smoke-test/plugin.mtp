@@ -1,0 +1,193 @@
+# Hardware Smoke Test for the New Motor/UI Plugin API (EOM3K)
+#
+# Companion diagnostic for post-orgasm-torture: exercises every host function
+# that plugin depends on (motor claim/ramp/release, LED, lock/unlock, mode
+# read-back) as a self-driving sequence triggered by a manual mode switch, so
+# it can be verified on real hardware without needing to reproduce an actual
+# orgasm_start. The events that genuinely require real biometric input
+# (orgasm_denial, orgasm_permit, orgasm_start) are not simulated — instead
+# this plugin just logs them via notify() whenever they occur, so wearing the
+# device during a real session confirms that wiring too.
+#
+# Sequence once armed (config.enabled) and mode is switched to automatic (1):
+#   1. LED red   -> green -> blue, each held for config.step_hold_ms
+#   2. request_motor_control(), ramp speed 0 -> 255 in config.ramp_step steps
+#   3. hold at full speed for config.step_hold_ms (read back via get_motor_speed)
+#   4. ramp speed 255 -> 0, release_motor_control()
+#   5. lock_controls() for config.lock_hold_seconds, then auto unlock_controls()
+# Switching back to manual mode (0) at any point aborts and cleans up
+# (releases motor control / unlocks if either was held).
+#
+# Author: Maus-Tec Electronics
+# License: MIT
+#
+defplugin HwApiSmokeTest do
+  @display_name "HW API Smoke Test"
+  @version      "0.1.0"
+  @sdk_version  "~> 1.1.0"
+  @type         "feature"
+  @description  "Self-driving hardware smoke test for the motor control, LED, and lock/unlock plugin APIs; passively logs orgasm-related events as they occur."
+  @author       "Maus-Tec Electronics"
+  @license      "MIT"
+  @repository   "https://github.com/maustec/eom-plugins"
+  @platforms    ["eom3k ~> 2.1.0"]
+  @permissions  ["motor:read", "motor:write", "arousal:read", "ui:led", "ui:lock", "ui:notify"]
+
+  config do
+    bool enabled = false, label: "Enable HW Smoke Test"
+    int step_hold_ms = 1500, min: 100, max: 10000, label: "Step Hold Duration (ms)"
+    int ramp_step = 15, min: 1, max: 255, label: "Motor Ramp Step Per Tick"
+    int lock_hold_seconds = 5, min: 1, max: 60, label: "Lock Duration (sec)"
+  end
+
+  globals do
+    # 0 = idle, 1/2/3 = LED red/green/blue hold, 4 = ramp up, 5 = hold at max,
+    # 6 = ramp down, 7 = lock hold (auto-unlocks when elapsed)
+    int state = 0
+    int phase_start_ms = 0
+    int motor_claimed = 0
+    int locked = 0
+  end
+
+  on :mode_set with mode do
+    if mode == 0 do
+      if $motor_claimed == 1 do
+        release_motor_control()
+        $motor_claimed = 0
+      end
+
+      if $locked == 1 do
+        unlock_controls()
+        $locked = 0
+      end
+
+      if $state != 0 do
+        set_led_color(0, 0, 0)
+        notify("hw-api-smoke-test: aborted")
+      end
+
+      $state = 0
+    end
+
+    if mode == 1 do
+      if config.enabled do
+        if $state == 0 do
+          $state = 1
+          $phase_start_ms = millis()
+          get_output_mode() |> concat("hw-api-smoke-test: starting, output mode = ", $_) |> notify()
+          set_led_color(255, 0, 0)
+        end
+      end
+    end
+  end
+
+  on :tick do
+    int lock_hold_ms
+    int speed
+    int next_speed
+
+    if $state == 1 do
+      if (millis() - $phase_start_ms) >= config.step_hold_ms do
+        set_led_color(0, 255, 0)
+        notify("hw-api-smoke-test: LED green")
+        $state = 2
+        $phase_start_ms = millis()
+      end
+    end
+
+    if $state == 2 do
+      if (millis() - $phase_start_ms) >= config.step_hold_ms do
+        set_led_color(0, 0, 255)
+        notify("hw-api-smoke-test: LED blue")
+        $state = 3
+        $phase_start_ms = millis()
+      end
+    end
+
+    if $state == 3 do
+      if (millis() - $phase_start_ms) >= config.step_hold_ms do
+        set_led_color(0, 0, 0)
+        request_motor_control()
+        $motor_claimed = 1
+        set_motor_speed(0)
+        get_output_mode() |> concat("hw-api-smoke-test: claimed motor, output mode = ", $_) |> notify()
+        $state = 4
+        $phase_start_ms = millis()
+      end
+    end
+
+    if $state == 4 do
+      speed = get_motor_speed()
+
+      if speed < 255 do
+        next_speed = speed + config.ramp_step
+
+        if next_speed > 255 do
+          next_speed = 255
+        end
+
+        set_motor_speed(next_speed)
+      end
+
+      if speed >= 255 do
+        notify("hw-api-smoke-test: motor at full speed")
+        $state = 5
+        $phase_start_ms = millis()
+      end
+    end
+
+    if $state == 5 do
+      if (millis() - $phase_start_ms) >= config.step_hold_ms do
+        $state = 6
+        $phase_start_ms = millis()
+      end
+    end
+
+    if $state == 6 do
+      speed = get_motor_speed()
+
+      if speed > 0 do
+        next_speed = speed - config.ramp_step
+
+        if next_speed < 0 do
+          next_speed = 0
+        end
+
+        set_motor_speed(next_speed)
+      end
+
+      if speed <= 0 do
+        release_motor_control()
+        $motor_claimed = 0
+        lock_controls("hw-api-smoke-test: lock/unlock check")
+        $locked = 1
+        notify("hw-api-smoke-test: motor released, controls locked")
+        $state = 7
+        $phase_start_ms = millis()
+      end
+    end
+
+    if $state == 7 do
+      lock_hold_ms = config.lock_hold_seconds * 1000
+
+      if (millis() - $phase_start_ms) >= lock_hold_ms do
+        unlock_controls()
+        $locked = 0
+        notify("hw-api-smoke-test: controls unlocked, smoke test complete")
+        $state = 0
+      end
+    end
+  end
+
+  on :orgasm_denial do
+    notify("hw-api-smoke-test: orgasm_denial event observed")
+  end
+
+  on :orgasm_permit do
+    notify("hw-api-smoke-test: orgasm_permit event observed")
+  end
+
+  on :orgasm_start do
+    notify("hw-api-smoke-test: orgasm_start event observed")
+  end
+end

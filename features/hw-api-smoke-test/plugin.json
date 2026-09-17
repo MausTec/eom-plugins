@@ -1,0 +1,294 @@
+{
+    "name": "hw-api-smoke-test",
+    "display_name": "HW API Smoke Test",
+    "version": "0.1.0",
+    "sdk_version": "~> 1.1.0",
+    "type": "feature",
+    "description": "Self-driving hardware smoke test for the motor control, LED, and lock/unlock plugin APIs; passively logs orgasm-related events as they occur.",
+    "author": "Maus-Tec Electronics",
+    "license": "MIT",
+    "repository": "https://github.com/maustec/eom-plugins",
+    "platforms": [ "eom3k ~> 2.1.0" ],
+    "permissions": [
+        "motor:read",
+        "motor:write",
+        "arousal:read",
+        "ui:led",
+        "ui:lock",
+        "ui:notify"
+    ],
+    "config": {
+        "enabled": { "type": "bool", "default": false },
+        "step_hold_ms": { "type": "int", "default": 1500, "min": 100, "max": 10000 },
+        "ramp_step": { "type": "int", "default": 15, "min": 1, "max": 255 },
+        "lock_hold_seconds": { "type": "int", "default": 5, "min": 1, "max": 60 }
+    },
+    "variables": { "state": 0, "phase_start_ms": 0, "motor_claimed": 0, "locked": 0 },
+    "events": {
+        "mode_set": {
+            "vars": [ "__t0" ],
+            "actions": [
+                {
+                    "if": {
+                        "eq": [ "$mode", 0 ],
+                        "then": [
+                            {
+                                "if": {
+                                    "eq": [ "$motor_claimed", 1 ],
+                                    "then": [ { "release_motor_control": [ ] }, { "set": [ "$motor_claimed", 0 ] } ]
+                                }
+                            },
+                            {
+                                "if": {
+                                    "eq": [ "$locked", 1 ],
+                                    "then": [ { "unlock_controls": [ ] }, { "set": [ "$locked", 0 ] } ]
+                                }
+                            },
+                            {
+                                "if": {
+                                    "neq": [ "$state", 0 ],
+                                    "then": [
+                                        { "set_led_color": [ 0, 0, 0 ] },
+                                        { "notify": "hw-api-smoke-test: aborted" }
+                                    ]
+                                }
+                            },
+                            { "set": [ "$state", 0 ] }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "eq": [ "$mode", 1 ],
+                        "then": [
+                            { "get_config": "enabled", "to": "$__t0" },
+                            {
+                                "if": {
+                                    "neq": [ "$__t0", 0 ],
+                                    "then": [
+                                        {
+                                            "if": {
+                                                "eq": [ "$state", 0 ],
+                                                "then": [
+                                                    { "set": [ "$state", 1 ] },
+                                                    { "millis": [ ], "to": "$phase_start_ms" },
+                                                    { "get_output_mode": [ ] },
+                                                    { "concat": [ "hw-api-smoke-test: starting, output mode = ", "$_" ] },
+                                                    { "notify": "$_" },
+                                                    { "set_led_color": [ 255, 0, 0 ] }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ],
+            "args": [ "mode" ]
+        },
+        "tick": {
+            "vars": [ "lock_hold_ms", "speed", "next_speed", "__t0", "__t1" ],
+            "actions": [
+                {
+                    "if": {
+                        "eq": [ "$state", 1 ],
+                        "then": [
+                            { "millis": [ ] },
+                            { "sub": [ "$_", "$phase_start_ms" ], "to": "$__t0" },
+                            { "get_config": "step_hold_ms", "to": "$__t1" },
+                            {
+                                "if": {
+                                    "gte": [ "$__t0", "$__t1" ],
+                                    "then": [
+                                        { "set_led_color": [ 0, 255, 0 ] },
+                                        { "notify": "hw-api-smoke-test: LED green" },
+                                        { "set": [ "$state", 2 ] },
+                                        { "millis": [ ], "to": "$phase_start_ms" }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "eq": [ "$state", 2 ],
+                        "then": [
+                            { "millis": [ ] },
+                            { "sub": [ "$_", "$phase_start_ms" ], "to": "$__t0" },
+                            { "get_config": "step_hold_ms", "to": "$__t1" },
+                            {
+                                "if": {
+                                    "gte": [ "$__t0", "$__t1" ],
+                                    "then": [
+                                        { "set_led_color": [ 0, 0, 255 ] },
+                                        { "notify": "hw-api-smoke-test: LED blue" },
+                                        { "set": [ "$state", 3 ] },
+                                        { "millis": [ ], "to": "$phase_start_ms" }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "eq": [ "$state", 3 ],
+                        "then": [
+                            { "millis": [ ] },
+                            { "sub": [ "$_", "$phase_start_ms" ], "to": "$__t0" },
+                            { "get_config": "step_hold_ms", "to": "$__t1" },
+                            {
+                                "if": {
+                                    "gte": [ "$__t0", "$__t1" ],
+                                    "then": [
+                                        { "set_led_color": [ 0, 0, 0 ] },
+                                        { "request_motor_control": [ ] },
+                                        { "set": [ "$motor_claimed", 1 ] },
+                                        { "set_motor_speed": 0 },
+                                        { "get_output_mode": [ ] },
+                                        {
+                                            "concat": [ "hw-api-smoke-test: claimed motor, output mode = ", "$_" ]
+                                        },
+                                        { "notify": "$_" },
+                                        { "set": [ "$state", 4 ] },
+                                        { "millis": [ ], "to": "$phase_start_ms" }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "eq": [ "$state", 4 ],
+                        "then": [
+                            { "get_motor_speed": [ ], "to": "$speed" },
+                            {
+                                "if": {
+                                    "lt": [ "$speed", 255 ],
+                                    "then": [
+                                        { "get_config": "ramp_step" },
+                                        { "add": [ "$speed", "$_" ], "to": "$next_speed" },
+                                        {
+                                            "if": {
+                                                "gt": [ "$next_speed", 255 ],
+                                                "then": [ { "set": [ "$next_speed", 255 ] } ]
+                                            }
+                                        },
+                                        { "set_motor_speed": "$next_speed" }
+                                    ]
+                                }
+                            },
+                            {
+                                "if": {
+                                    "gte": [ "$speed", 255 ],
+                                    "then": [
+                                        { "notify": "hw-api-smoke-test: motor at full speed" },
+                                        { "set": [ "$state", 5 ] },
+                                        { "millis": [ ], "to": "$phase_start_ms" }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "eq": [ "$state", 5 ],
+                        "then": [
+                            { "millis": [ ] },
+                            { "sub": [ "$_", "$phase_start_ms" ], "to": "$__t0" },
+                            { "get_config": "step_hold_ms", "to": "$__t1" },
+                            {
+                                "if": {
+                                    "gte": [ "$__t0", "$__t1" ],
+                                    "then": [
+                                        { "set": [ "$state", 6 ] },
+                                        { "millis": [ ], "to": "$phase_start_ms" }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "eq": [ "$state", 6 ],
+                        "then": [
+                            { "get_motor_speed": [ ], "to": "$speed" },
+                            {
+                                "if": {
+                                    "gt": [ "$speed", 0 ],
+                                    "then": [
+                                        { "get_config": "ramp_step" },
+                                        { "sub": [ "$speed", "$_" ], "to": "$next_speed" },
+                                        {
+                                            "if": {
+                                                "lt": [ "$next_speed", 0 ],
+                                                "then": [ { "set": [ "$next_speed", 0 ] } ]
+                                            }
+                                        },
+                                        { "set_motor_speed": "$next_speed" }
+                                    ]
+                                }
+                            },
+                            {
+                                "if": {
+                                    "lte": [ "$speed", 0 ],
+                                    "then": [
+                                        { "release_motor_control": [ ] },
+                                        { "set": [ "$motor_claimed", 0 ] },
+                                        { "lock_controls": "hw-api-smoke-test: lock/unlock check" },
+                                        { "set": [ "$locked", 1 ] },
+                                        { "notify": "hw-api-smoke-test: motor released, controls locked" },
+                                        { "set": [ "$state", 7 ] },
+                                        { "millis": [ ], "to": "$phase_start_ms" }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "eq": [ "$state", 7 ],
+                        "then": [
+                            { "get_config": "lock_hold_seconds" },
+                            { "mul": [ "$_", 1000 ], "to": "$lock_hold_ms" },
+                            { "millis": [ ] },
+                            { "sub": [ "$_", "$phase_start_ms" ], "to": "$__t0" },
+                            {
+                                "if": {
+                                    "gte": [ "$__t0", "$lock_hold_ms" ],
+                                    "then": [
+                                        { "unlock_controls": [ ] },
+                                        { "set": [ "$locked", 0 ] },
+                                        {
+                                            "notify": "hw-api-smoke-test: controls unlocked, smoke test complete"
+                                        },
+                                        { "set": [ "$state", 0 ] }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        "orgasm_denial": {
+            "vars": [ ],
+            "actions": [ { "notify": "hw-api-smoke-test: orgasm_denial event observed" } ]
+        },
+        "orgasm_permit": {
+            "vars": [ ],
+            "actions": [ { "notify": "hw-api-smoke-test: orgasm_permit event observed" } ]
+        },
+        "orgasm_start": {
+            "vars": [ ],
+            "actions": [ { "notify": "hw-api-smoke-test: orgasm_start event observed" } ]
+        }
+    }
+}

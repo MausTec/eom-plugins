@@ -1,0 +1,134 @@
+# Tests for the Post-Orgasm Torture feature plugin
+
+deftest for PostOrgasmTorture do
+  mock notify = (string text) -> 0
+  mock set_led_color = (int r, int g, int b) -> 0
+  mock lock_controls = (string reason) -> 0
+  mock unlock_controls = () -> 0
+  mock request_motor_control = () -> 0
+  mock release_motor_control = () -> 0
+  mock set_motor_speed = (int speed) -> 0
+  mock get_motor_speed = () -> 0
+  mock millis = () -> 0
+
+  describe "auto-edging start" do
+    test "does nothing when disabled" do
+      emit :mode_set with 1
+      assert $state == 0
+    end
+
+    test "begins auto-edging when enabled and automatic mode starts" do
+      config do
+        bool enabled = true
+      end
+
+      emit :mode_set with 1
+      assert $state == 1
+      expect notify called with "post-orgasm-torture: auto-edging started"
+    end
+  end
+
+  describe "auto-edging -> permit-orgasm" do
+    test "stays in auto-edging before the duration elapses" do
+      config do
+        bool enabled = true
+        int auto_edging_minutes = 1
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 30000
+      emit :tick
+      assert $state == 1
+      expect request_motor_control not called
+    end
+
+    test "claims motor control and ramps up once the duration elapses" do
+      config do
+        bool enabled = true
+        int auto_edging_minutes = 1
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 60000
+      emit :tick
+
+      assert $state == 2
+      expect request_motor_control called
+      expect set_motor_speed called with 255
+      expect set_led_color called with 0, 255, 0
+    end
+  end
+
+  describe "permit-orgasm -> post-orgasm" do
+    test "orgasm_start moves to the post-orgasm phase" do
+      config do
+        bool enabled = true
+        int auto_edging_minutes = 1
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 60000
+      emit :tick
+
+      emit :orgasm_start
+      assert $state == 3
+      expect set_led_color called with 255, 0, 0
+    end
+
+    test "locks controls during post-orgasm when configured" do
+      config do
+        bool enabled = true
+        int auto_edging_minutes = 1
+        bool lock_during_post_orgasm = true
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 60000
+      emit :tick
+      emit :orgasm_start
+
+      expect lock_controls called with "post-orgasm-torture: post-orgasm phase"
+    end
+  end
+
+  describe "post-orgasm -> ramp down -> idle" do
+    test "releases control and resets once fully ramped down" do
+      config do
+        bool enabled = true
+        int auto_edging_minutes = 1
+        int post_orgasm_seconds = 1
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 60000
+      emit :tick
+      emit :orgasm_start
+
+      mock millis = () -> 61000
+      mock get_motor_speed = () -> 0
+      emit :tick
+
+      assert $state == 0
+      expect release_motor_control called
+      expect unlock_controls called
+      expect notify called with "post-orgasm-torture: complete"
+    end
+  end
+
+  describe "manual override" do
+    test "returning to manual mode aborts any in-progress sequence" do
+      config do
+        bool enabled = true
+        int auto_edging_minutes = 1
+      end
+
+      emit :mode_set with 1
+      mock millis = () -> 60000
+      emit :tick
+      assert $state == 2
+
+      emit :mode_set with 0
+      assert $state == 0
+    end
+  end
+end

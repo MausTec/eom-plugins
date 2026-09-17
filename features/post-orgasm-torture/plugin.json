@@ -1,0 +1,207 @@
+{
+    "name": "post-orgasm-torture",
+    "display_name": "Post-Orgasm Torture",
+    "version": "0.1.0",
+    "sdk_version": "~> 1.1.0",
+    "type": "feature",
+    "description": "Timed auto-edging session that permits orgasm, then overstimulates for a fixed duration before returning control.",
+    "author": "Maus-Tec Electronics",
+    "license": "MIT",
+    "repository": "https://github.com/maustec/eom-plugins",
+    "platforms": [ "eom3k ~> 2.1.0" ],
+    "permissions": [
+        "motor:read",
+        "motor:write",
+        "arousal:read",
+        "ui:led",
+        "ui:lock",
+        "ui:notify"
+    ],
+    "config": {
+        "enabled": {
+            "type": "bool",
+            "default": false,
+            "label": "Enable Post-Orgasm Torture"
+        },
+        "auto_edging_minutes": {
+            "type": "int",
+            "default": 30,
+            "label": "Auto-Edging Duration (min)",
+            "min": 1,
+            "max": 300
+        },
+        "post_orgasm_seconds": {
+            "type": "int",
+            "default": 10,
+            "label": "Post-Orgasm Duration (sec)",
+            "min": 1,
+            "max": 300
+        },
+        "ramp_down_step": {
+            "type": "int",
+            "default": 5,
+            "label": "Ramp-Down Step per Tick",
+            "min": 1,
+            "max": 255
+        },
+        "lock_during_permit": {
+            "type": "bool",
+            "default": false,
+            "label": "Lock Controls During Permit-Orgasm"
+        },
+        "lock_during_post_orgasm": {
+            "type": "bool",
+            "default": false,
+            "label": "Lock Controls During Post-Orgasm"
+        }
+    },
+    "variables": { "state": 0, "phase_start_ms": 0 },
+    "events": {
+        "mode_set": {
+            "vars": [ "__t0" ],
+            "actions": [
+                {
+                    "if": { "eq": [ "$mode", 0 ], "then": [ { "set": [ "$state", 0 ] } ] }
+                },
+                {
+                    "if": {
+                        "eq": [ "$mode", 1 ],
+                        "then": [
+                            { "get_config": "enabled", "to": "$__t0" },
+                            {
+                                "if": {
+                                    "neq": [ "$__t0", 0 ],
+                                    "then": [
+                                        {
+                                            "if": {
+                                                "eq": [ "$state", 0 ],
+                                                "then": [
+                                                    { "set": [ "$state", 1 ] },
+                                                    { "millis": [ ], "to": "$phase_start_ms" },
+                                                    { "notify": "post-orgasm-torture: auto-edging started" }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ],
+            "args": [ "mode" ]
+        },
+        "orgasm_start": {
+            "vars": [ "__t0" ],
+            "actions": [
+                {
+                    "if": {
+                        "eq": [ "$state", 2 ],
+                        "then": [
+                            { "set": [ "$state", 3 ] },
+                            { "millis": [ ], "to": "$phase_start_ms" },
+                            { "set_led_color": [ 255, 0, 0 ] },
+                            { "notify": "post-orgasm-torture: orgasm detected" },
+                            { "get_config": "lock_during_post_orgasm", "to": "$__t0" },
+                            {
+                                "if": {
+                                    "neq": [ "$__t0", 0 ],
+                                    "then": [ { "lock_controls": "post-orgasm-torture: post-orgasm phase" } ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        "tick": {
+            "vars": [ "edging_ms", "held_ms", "speed", "next_speed", "__t0" ],
+            "actions": [
+                {
+                    "if": {
+                        "eq": [ "$state", 1 ],
+                        "then": [
+                            { "get_config": "auto_edging_minutes" },
+                            { "mul": [ "$_", 60000 ], "to": "$edging_ms" },
+                            { "millis": [ ] },
+                            { "sub": [ "$_", "$phase_start_ms" ], "to": "$__t0" },
+                            {
+                                "if": {
+                                    "gte": [ "$__t0", "$edging_ms" ],
+                                    "then": [
+                                        { "set": [ "$state", 2 ] },
+                                        { "millis": [ ], "to": "$phase_start_ms" },
+                                        { "request_motor_control": [ ] },
+                                        { "set_motor_speed": 255 },
+                                        { "set_led_color": [ 0, 255, 0 ] },
+                                        { "notify": "post-orgasm-torture: orgasm permitted" },
+                                        { "get_config": "lock_during_permit", "to": "$__t0" },
+                                        {
+                                            "if": {
+                                                "neq": [ "$__t0", 0 ],
+                                                "then": [ { "lock_controls": "post-orgasm-torture: permit-orgasm phase" } ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "eq": [ "$state", 3 ],
+                        "then": [
+                            { "get_config": "post_orgasm_seconds" },
+                            { "mul": [ "$_", 1000 ], "to": "$held_ms" },
+                            { "millis": [ ] },
+                            { "sub": [ "$_", "$phase_start_ms" ], "to": "$__t0" },
+                            {
+                                "if": {
+                                    "gte": [ "$__t0", "$held_ms" ],
+                                    "then": [ { "set": [ "$state", 4 ] } ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "eq": [ "$state", 4 ],
+                        "then": [
+                            { "get_motor_speed": [ ], "to": "$speed" },
+                            {
+                                "if": {
+                                    "gt": [ "$speed", 0 ],
+                                    "then": [
+                                        { "get_config": "ramp_down_step" },
+                                        { "sub": [ "$speed", "$_" ], "to": "$next_speed" },
+                                        {
+                                            "if": {
+                                                "lt": [ "$next_speed", 0 ],
+                                                "then": [ { "set": [ "$next_speed", 0 ] } ]
+                                            }
+                                        },
+                                        { "set_motor_speed": "$next_speed" }
+                                    ]
+                                }
+                            },
+                            {
+                                "if": {
+                                    "lte": [ "$speed", 0 ],
+                                    "then": [
+                                        { "release_motor_control": [ ] },
+                                        { "unlock_controls": [ ] },
+                                        { "set_led_color": [ 0, 0, 0 ] },
+                                        { "notify": "post-orgasm-torture: complete" },
+                                        { "set": [ "$state", 0 ] }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,141 @@
+# Post-Orgasm Torture Feature Plugin for EOM3K
+#
+# Timed edging session with automatic orgasm permission and post-orgasm
+# overstimulation, in three phases:
+#
+#   1. Auto-Edging   — waits out `auto_edging_minutes` while the device's own
+#                       built-in automatic edging runs unmodified.
+#   2. Permit-Orgasm — claims exclusive motor control, ramps to full speed,
+#                       and waits for the firmware's own orgasm detector
+#                       (orgasm_start event) to fire.
+#   3. Post-Orgasm   — holds full speed for `post_orgasm_seconds`, then ramps
+#                       back down to 0 and returns control to manual mode.
+#
+# This is an original design against the current mt-actions host API; it does
+# not reference or reimplement any previously-removed code.
+#
+# Author: Maus-Tec Electronics
+# License: MIT
+#
+defplugin PostOrgasmTorture do
+  @display_name "Post-Orgasm Torture"
+  @version      "0.1.0"
+  @sdk_version  "~> 1.1.0"
+  @type         "feature"
+  @description  "Timed auto-edging session that permits orgasm, then overstimulates for a fixed duration before returning control."
+  @author       "Maus-Tec Electronics"
+  @license      "MIT"
+  @repository   "https://github.com/maustec/eom-plugins"
+  @platforms    ["eom3k ~> 2.1.0"]
+  @permissions  ["motor:read", "motor:write", "arousal:read", "ui:led", "ui:lock", "ui:notify"]
+
+  config do
+    # Enable Post-Orgasm Torture
+    bool enabled = false
+
+    # Auto-Edging Duration (min)
+    int auto_edging_minutes = 30, min: 1, max: 300
+
+    # Post-Orgasm Duration (sec)
+    int post_orgasm_seconds = 10, min: 1, max: 300
+
+    # Ramp-Down Step per Tick
+    int ramp_down_step = 5, min: 1, max: 255
+
+    # Lock Controls During Permit-Orgasm
+    bool lock_during_permit = false
+
+    # Lock Controls During Post-Orgasm
+    bool lock_during_post_orgasm = false
+  end
+
+  globals do
+    # 0 = idle, 1 = auto-edging, 2 = permit-orgasm (ramped up, awaiting orgasm_start),
+    # 3 = post-orgasm hold, 4 = ramping down
+    int state = 0
+    int phase_start_ms = 0
+  end
+
+  on :mode_set with mode do
+    if mode == 0 do
+      $state = 0
+    end
+
+    if mode == 1 do
+      if config.enabled do
+        if $state == 0 do
+          $state = 1
+          $phase_start_ms = millis()
+          notify("post-orgasm-torture: auto-edging started")
+        end
+      end
+    end
+  end
+
+  on :orgasm_start do
+    if $state == 2 do
+      $state = 3
+      $phase_start_ms = millis()
+      set_led_color(255, 0, 0)
+      notify("post-orgasm-torture: orgasm detected")
+
+      if config.lock_during_post_orgasm do
+        lock_controls("post-orgasm-torture: post-orgasm phase")
+      end
+    end
+  end
+
+  on :tick do
+    int edging_ms
+    int held_ms
+    int speed
+    int next_speed
+
+    if $state == 1 do
+      edging_ms = config.auto_edging_minutes * 60000
+
+      if (millis() - $phase_start_ms) >= edging_ms do
+        $state = 2
+        $phase_start_ms = millis()
+        request_motor_control()
+        set_motor_speed(255)
+        set_led_color(0, 255, 0)
+        notify("post-orgasm-torture: orgasm permitted")
+
+        if config.lock_during_permit do
+          lock_controls("post-orgasm-torture: permit-orgasm phase")
+        end
+      end
+    end
+
+    if $state == 3 do
+      held_ms = config.post_orgasm_seconds * 1000
+
+      if (millis() - $phase_start_ms) >= held_ms do
+        $state = 4
+      end
+    end
+
+    if $state == 4 do
+      speed = get_motor_speed()
+
+      if speed > 0 do
+        next_speed = speed - config.ramp_down_step
+
+        if next_speed < 0 do
+          next_speed = 0
+        end
+
+        set_motor_speed(next_speed)
+      end
+
+      if speed <= 0 do
+        release_motor_control()
+        unlock_controls()
+        set_led_color(0, 0, 0)
+        notify("post-orgasm-torture: complete")
+        $state = 0
+      end
+    end
+  end
+end
