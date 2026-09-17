@@ -1,0 +1,26 @@
+{
+    "name": "woah-there-buddy",
+    "display_name": "Woah There Buddy",
+    "version": "0.1.0",
+    "sdk_version": "~> 1.1.0",
+    "type": "feature",
+    "description": "Speed based alert.",
+    "author": "Your Name",
+    "license": "MIT",
+    "platforms": [ "eom3k ~> 2.1.0" ],
+    "permissions": [ "ui:notify" ],
+    "events": {
+        "speed_change": {
+            "vars": [ ],
+            "actions": [
+                {
+                    "if": {
+                        "gte": [ "$speed", 100 ],
+                        "then": [ { "notify": "Woah there, buddy! Yer gonna cum at those speeds!" } ]
+                    }
+                }
+            ],
+            "args": [ "speed" ]
+        }
+    }
+}

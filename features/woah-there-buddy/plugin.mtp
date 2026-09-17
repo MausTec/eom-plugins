@@ -1,0 +1,17 @@
+defplugin WoahThereBuddy do
+  @display_name "Woah There Buddy"
+  @version      "0.1.0"
+  @sdk_version  "~> 1.1.0"
+  @type         "feature"
+  @description  "Speed based alert."
+  @author       "Your Name"
+  @license      "MIT"
+  @platforms    ["eom3k ~> 2.1.0"]
+  @permissions  ["ui:notify"]
+
+  on :speed_change with speed do
+    if speed >= 100 do
+       notify("Woah there, buddy! Yer gonna cum at those speeds!")
+    end
+  end
+end
