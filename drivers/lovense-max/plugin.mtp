@@ -30,7 +30,7 @@ defplugin LovenseMaxDriver do
 
   config do
     # Vibration Max Level
-    int max_level = 20, min: 0, max: 5
+    int max_level = 20, min: 0, max: 20
 
     # Air Min Level
     int air_min = 1, min: 0, max: 5
