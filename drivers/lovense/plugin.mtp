@@ -30,7 +30,7 @@ defplugin LovenseDriver do
 
   config do
     # Vibration Max Level
-    int max_level = 20, min: 0, max: 5
+    int max_level = 20, min: 0, max: 20
   end
 
   # Maps a 0-255 speed value to a 0-max_level motor command value.
