@@ -1,0 +1,49 @@
+name: Release
+
+# Tag a single plugin as <plugin-name>-v<version>, e.g. lovense-driver-v1.0.0.
+# The plugin's name and @version must match the tag.
+on:
+  push:
+    tags: ["*-v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse tag
+        id: tag
+        run: |
+          echo "name=${GITHUB_REF_NAME%-v*}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME##*-v}" >> "$GITHUB_OUTPUT"
+
+      # TODO: pin to a release tag (MausTec/mt-sdk/action@v1) once one is published.
+      - name: Test
+        uses: MausTec/mt-sdk/action@main
+        with:
+          sdk-version-file: .mt-sdk-version
+          command: test
+
+      - name: Package
+        env:
+          PLUGIN_NAME: ${{ steps.tag.outputs.name }}
+          PLUGIN_VERSION: ${{ steps.tag.outputs.version }}
+        run: mt-sdk package --plugin "$PLUGIN_NAME" --expect-version "$PLUGIN_VERSION"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLUGIN_VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          flags=""
+          case "$PLUGIN_VERSION" in *-*) flags="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/packages/* --title "$GITHUB_REF_NAME" --generate-notes $flags
+
+      # Reserved: publish the same dist/packages archives to Maus Hub
+      # (`mt-sdk release`) once that command is available.

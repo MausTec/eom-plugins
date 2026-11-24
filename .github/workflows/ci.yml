@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # plugin.json is a build artifact of plugin.mtp and is distributed through
+      # GitHub releases. Reject PRs that commit one next to its source.
+      - name: Reject committed build artifacts
+        run: |
+          status=0
+          while IFS= read -r mtp; do
+            artifact="$(dirname "$mtp")/plugin.json"
+            if git ls-files --error-unmatch "$artifact" >/dev/null 2>&1; then
+              echo "::error file=$artifact::$artifact is a compiler artifact. Edit $mtp, then run 'mt-sdk build'. Do not commit the JSON."
+              status=1
+            fi
+          done < <(git ls-files '*.mtp' ':!:*.test.mtp')
+          exit $status
+
+      # TODO: pin to a release tag (MausTec/mt-sdk/action@v1) once one is published.
+      - name: Build
+        uses: MausTec/mt-sdk/action@main
+        with:
+          sdk-version-file: .mt-sdk-version
+          command: build
+
+      - name: Test
+        run: mt-sdk test
+
+      # Validates every plugin's name and version without writing anything.
+      - name: Check packaging
+        run: mt-sdk package --dry-run

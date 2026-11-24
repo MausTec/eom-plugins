@@ -1,10 +1,9 @@
 {
-    "strict": true,
-    "plugins": [
-        "drivers/*",
-        "features/*"
-    ],
-    "apps": [
-        "apps/*"
-    ]
-} 
+    "workspace": {
+        "strict": true,
+        "members": [
+            "drivers/*",
+            "features/*"
+        ]
+    }
+}
