@@ -1,13 +1,24 @@
 name: Release
 
-# Tag a single plugin as <plugin-name>-v<version>, e.g. lovense-driver-v1.0.0.
-# The plugin's name and @version must match the tag.
+# Repo-wide release workflow
+#
+# Packages all plugins and creates a GitHub release.
 on:
   push:
-    tags: ["*-v*.*.*"]
+    tags: ["release-*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create, e.g. release-2026.11.24"
+        required: true
 
 permissions:
   contents: write
+
+env:
+  # Plugins that are examples or concepts and aren't released.
+  # Space-separated plugin names (the `name` in the compiled plugin.json).
+  EXCLUDE: hw-api-smoke-test post-orgasm-torture woah-there-buddy
 
 jobs:
   release:
@@ -17,11 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Parse tag
-        id: tag
+      - name: Validate tag
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          echo "name=${GITHUB_REF_NAME%-v*}" >> "$GITHUB_OUTPUT"
-          echo "version=${GITHUB_REF_NAME##*-v}" >> "$GITHUB_OUTPUT"
+          if ! printf '%s' "$TAG" | grep -Eq '^release-[0-9A-Za-z._-]+$'; then
+            echo "::error::Release tag '$TAG' must look like release-2026.11.24."
+            exit 1
+          fi
 
       # TODO: pin to a release tag (MausTec/mt-sdk/action@v1) once one is published.
       - name: Test
@@ -31,19 +45,23 @@ jobs:
           command: test
 
       - name: Package
+        run: mt-sdk package
+
+      - name: Prepare release assets
         env:
-          PLUGIN_NAME: ${{ steps.tag.outputs.name }}
-          PLUGIN_VERSION: ${{ steps.tag.outputs.version }}
-        run: mt-sdk package --plugin "$PLUGIN_NAME" --expect-version "$PLUGIN_VERSION"
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/prepare-release.sh
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          PLUGIN_VERSION: ${{ steps.tag.outputs.version }}
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          flags=""
-          case "$PLUGIN_VERSION" in *-*) flags="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" dist/packages/* --title "$GITHUB_REF_NAME" --generate-notes $flags
+          gh release create "$TAG" dist/packages/* \
+            --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --target "$GITHUB_SHA"
 
-      # Reserved: publish the same dist/packages archives to Maus Hub
-      # (`mt-sdk release`) once that command is available.
+      # Reserved: publish each plugin's archive from dist/packages to Maus Hub
+      # (`mt-sdk release`) once that command is available. Hub versions are per
+      # plugin, so that step should skip versions that are already published.

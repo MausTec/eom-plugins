@@ -11,9 +11,11 @@ Community plugins and drivers for the Edge-o-Matic 3000.
 ## Installation
 
 Download plugins from the
-[Releases page](https://github.com/MausTec/eom-plugins/releases). Each plugin is
-released on its own, as a zip named after the plugin and version, for example
-`lovense-driver-1.0.0.zip`.
+[latest release](https://github.com/MausTec/eom-plugins/releases/latest). Every
+release contains every plugin, each as a zip named after the plugin and its
+version, for example `lovense-driver-1.0.0.zip`. Only download the plugins you
+need; drivers for similar devices (such as the Lovense ones) should not be
+installed together unless their descriptions say so.
 
 1. On your device's SD card, find or create a folder called `plugins`
    (lowercase, at the top level of the card).
@@ -21,8 +23,8 @@ released on its own, as a zip named after the plugin and version, for example
    (e.g. `lovense-driver/`) with a `plugin.json` inside.
 3. Copy that whole folder into `plugins/` and restart the device.
 
-Every release also has a matching `.sha256` file if you want to verify your
-download.
+Every release also has a `SHA256SUMS` file if you want to verify your downloads
+(`sha256sum -c SHA256SUMS`).
 
 The source code in this repository is not directly installable: it needs to be
 compiled first, which is what the release zips are. Do not copy folders out of
@@ -59,18 +61,27 @@ functions. This is why Elixir-ish.
 
 ## Releasing
 
-Releases are cut per plugin. Bump the plugin's `@version` in its `plugin.mtp`, merge it, then push a
-tag named `<plugin-name>-v<version>`, where the plugin name is the `name` in its compiled
-`plugin.json` (for example `lovense-driver`):
+Releases are repo-wide: one GitHub release contains the package of every plugin, so the latest
+release always has everything. Plugins keep their own versions (the `@version` in each
+`plugin.mtp`); the release notes mark which plugin versions are new in that release.
 
-```sh
-git tag lovense-driver-v1.0.1
-git push origin lovense-driver-v1.0.1
-```
+1. Bump `@version` in the `plugin.mtp` of each plugin that changed, and merge to `main`.
+2. Push **one** tag named `release-YYYY.MM.DD` (add `-2`, `-3`, ... for more than one release in a
+   day):
 
-The release workflow runs the tests, checks that the tag matches the plugin's name and version,
-packages it with `mt-sdk package`, and attaches the zip and checksum to a GitHub release. Publishing
-to Maus Hub will be added to this workflow when `mt-sdk release` is available.
+   ```sh
+   git tag release-2026.11.24
+   git push origin release-2026.11.24
+   ```
+
+   Don't push several tags at once. GitHub apparently does not run workflows when more than three tags are
+   pushed together. Alternatively, run the **Release** workflow from the Actions tab and enter the
+   tag name; it creates the tag for you.
+
+The release workflow runs the tests, packages every plugin with `mt-sdk package`, and attaches the
+zips and a `SHA256SUMS` file to the release. Example and concept plugins that are
+listed in the workflow's `EXCLUDE` variable are skipped. Publishing to Maus-Hub will be added to this workflow
+when `mt-sdk release` is available.
 
 ## License
 
